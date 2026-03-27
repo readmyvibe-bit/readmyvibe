@@ -82,3 +82,44 @@ body {
   background: rgba(0, 168, 144, 0.12);
   backdrop-filter: blur(2px);
 }
+
+/* Error box */
+.rvm-error-box {
+  background: #fff0f0;
+  border: 1px solid #e8a0a0;
+  color: #7a2020;
+}
+
+/* Full result section formatting */
+.result-formatted {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.result-section {
+  border-left: 3px solid var(--brand-a);
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: var(--badge-bg);
+}
+
+.result-heading {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--badge-text);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  margin-bottom: 6px;
+}
+
+.result-body {
+  font-size: 15px;
+  line-height: 1.65;
+  color: var(--text);
+}
+
+.result-body strong {
+  color: var(--badge-text);
+  font-weight: 700;
+}

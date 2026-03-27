@@ -6,16 +6,68 @@ import LegalLinks from "@/components/LegalLinks";
 import ResultCard from "@/components/ResultCard";
 import ShareCard from "@/components/ShareCard";
 import { getSessionId, resetSessionId } from "@/lib/session";
-import { ToolConfig } from "@/types";
+import { ToolConfig, ToolId } from "@/types";
 
 type Props = { tool: ToolConfig };
-const LOADING_STEPS = [
+
+const DEFAULT_LOADING_STEPS = [
   "✨ Payment received! Generating your reading...",
   "🔮 AI is reading the vibes...",
-  "😂 Crafting your personalised roast...",
   "🎨 Almost ready...",
   "💫 Putting the final touches...",
 ];
+
+const TOOL_LOADING_STEPS: Partial<Record<ToolId, string[]>> = {
+  "friendship-roast": [
+    "✨ Payment received!",
+    "😂 Roasting your friendship...",
+    "🔥 Finding the funniest moments...",
+    "💀 This one is going to hurt (lovingly)...",
+    "💫 Putting the final touches...",
+  ],
+  "crush-compatibility": [
+    "✨ Payment received!",
+    "💘 Reading the romantic energy...",
+    "🔍 Calculating your compatibility...",
+    "✨ Finding the perfect message to send...",
+    "💫 Almost ready...",
+  ],
+  "decode-message": [
+    "✨ Payment received!",
+    "🔍 Analysing every word they sent...",
+    "💭 Reading between the lines...",
+    "💬 Crafting your perfect reply...",
+    "💫 Almost ready...",
+  ],
+  "profile-personality": [
+    "✨ Payment received!",
+    "🔮 Reading your profile energy...",
+    "🧠 Uncovering your hidden traits...",
+    "✨ Discovering your Instagram superpower...",
+    "💫 Putting the final touches...",
+  ],
+  "facebook-prediction": [
+    "✨ Payment received!",
+    "🔮 Channelling your 2026 energy...",
+    "💫 Reading your love and career path...",
+    "🎯 Spotting the surprise of your year...",
+    "✨ Almost ready...",
+  ],
+  "profile-impression": [
+    "✨ Payment received!",
+    "🕵️ Analysing first impressions...",
+    "📊 Calculating your trust score...",
+    "👀 Finding what you unknowingly communicate...",
+    "💫 Almost ready...",
+  ],
+  "instagram-type": [
+    "✨ Payment received!",
+    "🧬 Analysing your Instagram DNA...",
+    "🎭 Finding your personality type...",
+    "⭐ Matching your celebrity energy...",
+    "💫 Almost ready...",
+  ],
+};
 
 export default function ToolPageClient({ tool }: Props) {
   const [values, setValues] = useState<Record<string, string>>({});
@@ -30,6 +82,10 @@ export default function ToolPageClient({ tool }: Props) {
   const [postPaymentLoading, setPostPaymentLoading] = useState(false);
   const [loadingStepIndex, setLoadingStepIndex] = useState(0);
   const [loadingProgress, setLoadingProgress] = useState(0);
+  const [error, setError] = useState("");
+
+  const loadingSteps = TOOL_LOADING_STEPS[tool.id] || DEFAULT_LOADING_STEPS;
+  const clearError = () => { if (error) setError(""); };
 
   const loadRazorpayScript = () =>
     new Promise<boolean>((resolve) => {
@@ -80,7 +136,7 @@ export default function ToolPageClient({ tool }: Props) {
     if (!postPaymentLoading || fullResult) return;
     const started = Date.now();
     const stepTimer = window.setInterval(() => {
-      setLoadingStepIndex((idx) => (idx + 1) % LOADING_STEPS.length);
+      setLoadingStepIndex((idx) => (idx + 1) % loadingSteps.length);
     }, 2000);
     const progressTimer = window.setInterval(() => {
       const elapsed = Date.now() - started;
@@ -95,8 +151,9 @@ export default function ToolPageClient({ tool }: Props) {
 
   const generate = async (e: FormEvent) => {
     e.preventDefault();
+    clearError();
     if (!sessionId) {
-      alert("Unable to start session. Please refresh and try again.");
+      setError("Unable to start session. Please refresh and try again.");
       return;
     }
     setIsGenerating(true);
@@ -117,18 +174,19 @@ export default function ToolPageClient({ tool }: Props) {
       setGenerationId(data.generationId || "");
       setFullResult("");
       setIsPaid(false);
-    } catch (error) {
-      console.error(error);
-      const message = error instanceof Error ? error.message : "Something went wrong, try again ✨";
-      alert(message);
+    } catch (err) {
+      console.error(err);
+      const message = err instanceof Error ? err.message : "Something went wrong, try again ✨";
+      setError(message);
     } finally {
       setIsGenerating(false);
     }
   };
 
   const handlePayment = async () => {
+    clearError();
     if (!sessionId || !generationId) {
-      alert("Please generate your reading first.");
+      setError("Please generate your reading first.");
       return;
     }
     try {
@@ -172,10 +230,10 @@ export default function ToolPageClient({ tool }: Props) {
             setFullResult(verifyData.fullResult || "");
             setIsPaid(true);
             setLoadingProgress(100);
-          } catch (error) {
-            console.error(error);
-            const message = error instanceof Error ? error.message : "Payment verification failed";
-            alert(message);
+          } catch (err) {
+            console.error(err);
+            const message = err instanceof Error ? err.message : "Payment verification failed";
+            setError(message);
           } finally {
             setPostPaymentLoading(false);
           }
@@ -185,13 +243,18 @@ export default function ToolPageClient({ tool }: Props) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const rzp = new (window as any).Razorpay(options);
       rzp.open();
-    } catch (error) {
-      console.error(error);
-      const message = error instanceof Error ? error.message : "Payment failed, please try again.";
-      alert(message);
+    } catch (err) {
+      console.error(err);
+      const message = err instanceof Error ? err.message : "Payment failed, please try again.";
+      setError(message);
     } finally {
       setIsPaying(false);
     }
+  };
+
+  const handleFieldChange = (fieldId: string, value: string) => {
+    clearError();
+    setValues((s) => ({ ...s, [fieldId]: value }));
   };
 
   const shareNameLine = (() => {
@@ -230,7 +293,7 @@ export default function ToolPageClient({ tool }: Props) {
                 <textarea
                   required={field.required}
                   value={values[field.id] || ""}
-                  onChange={(e) => setValues((s) => ({ ...s, [field.id]: e.target.value }))}
+                  onChange={(e) => handleFieldChange(field.id, e.target.value)}
                   rows={4}
                   className="w-full rounded-xl border border-[#c0e8e0] px-3 py-2 text-base text-[#0a3030] outline-none focus:border-[#00c0a8]"
                 />
@@ -238,7 +301,7 @@ export default function ToolPageClient({ tool }: Props) {
                 <select
                   required={field.required}
                   value={values[field.id] || ""}
-                  onChange={(e) => setValues((s) => ({ ...s, [field.id]: e.target.value }))}
+                  onChange={(e) => handleFieldChange(field.id, e.target.value)}
                   className="w-full rounded-xl border border-[#c0e8e0] px-3 py-2 text-base text-[#0a3030] outline-none focus:border-[#00c0a8]"
                 >
                   <option value="">Select...</option>
@@ -257,7 +320,7 @@ export default function ToolPageClient({ tool }: Props) {
                         name={field.id}
                         value={option}
                         checked={(values[field.id] || "") === option}
-                        onChange={(e) => setValues((s) => ({ ...s, [field.id]: e.target.value }))}
+                        onChange={(e) => handleFieldChange(field.id, e.target.value)}
                       />
                       <span className="text-base text-[#0a3030]">{option}</span>
                     </label>
@@ -268,13 +331,20 @@ export default function ToolPageClient({ tool }: Props) {
                   type="text"
                   required={field.required}
                   value={values[field.id] || ""}
-                  onChange={(e) => setValues((s) => ({ ...s, [field.id]: e.target.value }))}
+                  onChange={(e) => handleFieldChange(field.id, e.target.value)}
                   placeholder={field.placeholder}
                   className="w-full rounded-xl border border-[#c0e8e0] px-3 py-2 text-base text-[#0a3030] outline-none focus:border-[#00c0a8]"
                 />
               )}
             </label>
           ))}
+
+          {error ? (
+            <div className="rvm-error-box rounded-xl p-3 text-sm font-semibold">
+              ⚠️ {error}
+            </div>
+          ) : null}
+
           <button
             type="submit"
             disabled={isGenerating}
@@ -326,7 +396,7 @@ export default function ToolPageClient({ tool }: Props) {
             <div className="mt-4 h-2 w-full overflow-hidden rounded-full bg-[#e8faf6]">
               <div className="h-full rounded-full bg-gradient-to-r from-[#00c8a0] to-[#00a8d0]" style={{ width: `${loadingProgress}%` }} />
             </div>
-            <p className="mt-4 text-base font-semibold text-[#0a3030]">{LOADING_STEPS[loadingStepIndex]}</p>
+            <p className="mt-4 text-base font-semibold text-[#0a3030]">{loadingSteps[loadingStepIndex]}</p>
             <div className="mt-4 h-20 w-20 animate-pulse rounded-full bg-[#00c8a026]" />
           </div>
         </div>
