@@ -29,6 +29,11 @@ const TOOL_TYPE_LABELS: Record<ToolId, string> = {
 
 /* ─── Quote extraction ─── */
 
+function endsCleanly(s: string): boolean {
+  const t = s.trim();
+  return t.endsWith(".") || t.endsWith("!") || t.endsWith("?");
+}
+
 function extractBestQuote(text: string): string {
   const clean = text
     .replace(/\*\*/g, "")
@@ -42,11 +47,9 @@ function extractBestQuote(text: string): string {
     .map((s) => s.trim())
     .filter((s) => s.length > 30)
     .filter((s) => !s.includes("http"))
-    .filter((s) => !s.includes("unlock"))
-    .filter((s) => !s.includes("readmyvibe"))
-    .filter((s) => !s.endsWith("\u2013"))
-    .filter((s) => !s.endsWith("-"))
-    .filter((s) => !s.endsWith(","));
+    .filter((s) => !s.toLowerCase().includes("unlock"))
+    .filter((s) => !s.toLowerCase().includes("readmyvibe"))
+    .filter(endsCleanly);
 
   const skipFirst = sentences.slice(2);
 
@@ -57,7 +60,7 @@ function extractBestQuote(text: string): string {
     "secretly", "refuses", "every time",
   ];
 
-  // Prefer exclamation sentences first
+  // Prefer exclamation sentences first (under 100 chars)
   const exclamation = skipFirst.find((s) => s.includes("!") && s.length <= 100);
   if (exclamation) return exclamation;
 
@@ -69,7 +72,11 @@ function extractBestQuote(text: string): string {
 
   // Fallback to first complete sentence under 100 chars
   const fallback = skipFirst.find((s) => s.length <= 100);
-  return fallback || sentences[0] || "Find your vibe";
+  if (fallback) return fallback;
+
+  // Last resort from all sentences
+  const any = sentences.find((s) => s.length <= 100);
+  return any || sentences[0]?.slice(0, 97) + "..." || "Find your vibe";
 }
 
 /* ─── Canvas drawing ─── */
@@ -90,7 +97,7 @@ async function loadCardFont(): Promise<void> {
   }
 }
 
-function f(weight: string, size: number): string {
+function ff(weight: string, size: number): string {
   return `${weight} ${size}px ${CARD_FONT}, Arial, sans-serif`;
 }
 
@@ -132,10 +139,8 @@ function wrapText(
 type CardData = { emoji: string; name: string; typeLabel: string; quote: string };
 
 function drawAurora(ctx: CanvasRenderingContext2D, d: CardData) {
-  // Background
   ctx.fillStyle = "#0b2f34";
   ctx.fillRect(0, 0, 1080, 1080);
-  // Glow circles
   const g1 = ctx.createRadialGradient(170, 130, 0, 170, 130, 280);
   g1.addColorStop(0, "rgba(0,200,160,0.25)");
   g1.addColorStop(1, "transparent");
@@ -148,25 +153,24 @@ function drawAurora(ctx: CanvasRenderingContext2D, d: CardData) {
   ctx.fillRect(0, 0, 1080, 1080);
 
   ctx.textAlign = "left";
-  ctx.font = f("800", 36);
+  ctx.font = ff("800", 36);
   ctx.fillStyle = "rgba(255,255,255,0.45)";
   ctx.fillText("ReadMyVibe", 60, 80);
   ctx.font = "64px Arial, sans-serif";
   ctx.fillText(d.emoji, 960, 90);
 
-  ctx.font = f("800", 72);
+  ctx.font = ff("800", 72);
   ctx.fillStyle = "#ffffff";
   wrapText(ctx, d.name.slice(0, 28), 60, 340, 960, 88, 2);
 
-  ctx.font = f("700", 32);
+  ctx.font = ff("700", 32);
   ctx.fillStyle = "rgba(0,200,180,0.8)";
   ctx.fillText(d.typeLabel.toUpperCase(), 60, 530);
 
-  ctx.font = f("600", 38);
+  ctx.font = ff("600", 38);
   ctx.fillStyle = "rgba(255,255,255,0.75)";
-  wrapText(ctx, `\u201C${d.quote}\u201D`, 60, 620, 960, 52, 4);
+  wrapText(ctx, "\u201C" + d.quote + "\u201D", 60, 620, 960, 52, 4);
 
-  // Divider
   ctx.strokeStyle = "rgba(255,255,255,0.1)";
   ctx.lineWidth = 1;
   ctx.beginPath();
@@ -174,7 +178,7 @@ function drawAurora(ctx: CanvasRenderingContext2D, d: CardData) {
   ctx.lineTo(1020, 940);
   ctx.stroke();
 
-  ctx.font = f("800", 28);
+  ctx.font = ff("800", 28);
   ctx.fillStyle = "rgba(255,255,255,0.35)";
   ctx.textAlign = "left";
   ctx.fillText("readmyvibe.in", 60, 1000);
@@ -187,7 +191,6 @@ function drawAurora(ctx: CanvasRenderingContext2D, d: CardData) {
 function drawMinimal(ctx: CanvasRenderingContext2D, d: CardData) {
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, 1080, 1080);
-  // Teal header
   const hg = ctx.createLinearGradient(0, 0, 1080, 0);
   hg.addColorStop(0, "#00a890");
   hg.addColorStop(1, "#0085b8");
@@ -195,30 +198,29 @@ function drawMinimal(ctx: CanvasRenderingContext2D, d: CardData) {
   ctx.fillRect(0, 0, 1080, 320);
 
   ctx.textAlign = "left";
-  ctx.font = f("800", 36);
+  ctx.font = ff("800", 36);
   ctx.fillStyle = "rgba(255,255,255,0.65)";
   ctx.fillText("ReadMyVibe", 60, 80);
   ctx.font = "64px Arial, sans-serif";
   ctx.fillText(d.emoji, 960, 90);
 
-  ctx.font = f("800", 72);
+  ctx.font = ff("800", 72);
   ctx.fillStyle = "#ffffff";
   ctx.fillText(d.name.slice(0, 22), 60, 200);
 
-  ctx.font = f("700", 28);
+  ctx.font = ff("700", 28);
   ctx.fillStyle = "rgba(255,255,255,0.65)";
   ctx.fillText(d.typeLabel.toUpperCase(), 60, 270);
 
-  // White section
-  ctx.font = f("700", 28);
+  ctx.font = ff("700", 28);
   ctx.fillStyle = "#5aabab";
   ctx.fillText("YOUR READING", 60, 400);
 
-  ctx.font = f("600", 40);
+  ctx.font = ff("600", 40);
   ctx.fillStyle = "#0a3030";
-  wrapText(ctx, `\u201C${d.quote}\u201D`, 60, 470, 960, 56, 4);
+  wrapText(ctx, "\u201C" + d.quote + "\u201D", 60, 470, 960, 56, 4);
 
-  ctx.font = f("800", 28);
+  ctx.font = ff("800", 28);
   ctx.fillStyle = "#6aabab";
   ctx.textAlign = "left";
   ctx.fillText("readmyvibe.in", 60, 1020);
@@ -231,7 +233,6 @@ function drawMinimal(ctx: CanvasRenderingContext2D, d: CardData) {
 function drawBold(ctx: CanvasRenderingContext2D, d: CardData) {
   ctx.fillStyle = "#f8fffe";
   ctx.fillRect(0, 0, 1080, 1080);
-  // Left stripe
   const sg = ctx.createLinearGradient(0, 0, 0, 1080);
   sg.addColorStop(0, "#00e5cc");
   sg.addColorStop(1, "#0085b8");
@@ -239,33 +240,32 @@ function drawBold(ctx: CanvasRenderingContext2D, d: CardData) {
   ctx.fillRect(0, 0, 12, 1080);
 
   ctx.textAlign = "left";
-  ctx.font = f("800", 30);
+  ctx.font = ff("800", 30);
   ctx.fillStyle = "#a0d0c8";
   ctx.fillText("READMYVIBE", 80, 80);
 
   ctx.font = "80px Arial, sans-serif";
   ctx.fillText(d.emoji, 80, 280);
 
-  ctx.font = f("700", 28);
+  ctx.font = ff("700", 28);
   ctx.fillStyle = "#5a9090";
   ctx.fillText("READING FOR", 80, 360);
 
-  ctx.font = f("800", 86);
+  ctx.font = ff("800", 86);
   ctx.fillStyle = "#003838";
   ctx.fillText(d.name.slice(0, 16), 80, 470);
 
-  // Divider
   const dg = ctx.createLinearGradient(80, 0, 280, 0);
   dg.addColorStop(0, "#00e5cc");
   dg.addColorStop(1, "#0085b8");
   ctx.fillStyle = dg;
   ctx.fillRect(80, 510, 160, 8);
 
-  ctx.font = f("600", 38);
+  ctx.font = ff("600", 38);
   ctx.fillStyle = "#2a6060";
-  wrapText(ctx, `\u201C${d.quote}\u201D`, 80, 590, 920, 54, 4);
+  wrapText(ctx, "\u201C" + d.quote + "\u201D", 80, 590, 920, 54, 4);
 
-  ctx.font = f("800", 28);
+  ctx.font = ff("800", 28);
   ctx.fillStyle = "#8ac0b8";
   ctx.textAlign = "left";
   ctx.fillText("readmyvibe.in", 80, 1020);
@@ -387,6 +387,7 @@ export default function ShareCard({ tool, nameLine, resultText }: Props) {
   const [copiedLink, setCopiedLink] = useState(false);
   const [aiQuote, setAiQuote] = useState<string | null>(null);
   const [quoteLoading, setQuoteLoading] = useState(false);
+  const [error, setError] = useState("");
   const cardBlobRef = useRef<Blob | null>(null);
   const timerRef = useRef<number | null>(null);
 
@@ -429,7 +430,7 @@ export default function ShareCard({ tool, nameLine, resultText }: Props) {
   }, [selectedStyle]);
 
   const quote = useMemo(() => (aiQuote ? aiQuote : extractBestQuote(resultText)), [aiQuote, resultText]);
-  const displayQuote = quoteLoading && !aiQuote ? "Creating your personalised line\u2026" : quote;
+  const displayQuote = quoteLoading && !aiQuote ? "Creating your personalised line..." : quote;
   const nameText = useMemo(() => (nameLine || "Your Vibe").trim(), [nameLine]);
   const typeLabel = TOOL_TYPE_LABELS[tool.id] || tool.name;
 
@@ -455,7 +456,7 @@ export default function ShareCard({ tool, nameLine, resultText }: Props) {
   };
 
   const fallbackCaption = (q: string) =>
-    `POV: AI just decoded my vibe and it is painfully accurate \uD83D\uDE2D\uD83D\uDE02\n\n"${q}"\n\nTry yours at readmyvibe.in \uD83D\uDC46\n#ReadMyVibe #VibeCheck #InstagramIndia #AIReading #ForYou`;
+    `POV: AI just decoded my vibe and it is painfully accurate 😭😂\n\n"${q}"\n\nTry yours at readmyvibe.in 👆\n#ReadMyVibe #VibeCheck #InstagramIndia #AIReading #ForYou`;
 
   const getCardBlob = async (): Promise<Blob> => {
     if (cardBlobRef.current) return cardBlobRef.current;
@@ -481,20 +482,18 @@ export default function ShareCard({ tool, nameLine, resultText }: Props) {
       anchor.click();
       setDownloaded(true);
       if (!caption) await generateCaption(aiQuote ?? quote);
-    } catch (error) {
-      console.error(error);
+    } catch (err) {
+      console.error(err);
       setError("Unable to generate card right now. Please try again.");
     } finally {
       setIsGenerating(false);
     }
   };
 
-  const [error, setError] = useState("");
-
   const handleInstagramShare = async () => {
     try {
       const blob = await getCardBlob();
-      const captionText = caption || `Try yours at readmyvibe.in \uD83D\uDC46`;
+      const captionText = caption || "Try yours at readmyvibe.in 👆";
       await navigator.clipboard.writeText(captionText);
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
@@ -538,7 +537,7 @@ export default function ShareCard({ tool, nameLine, resultText }: Props) {
   };
 
   const copyCaption = async () => {
-    const text = caption || `Try yours at readmyvibe.in \uD83D\uDC46`;
+    const text = caption || "Try yours at readmyvibe.in 👆";
     await navigator.clipboard.writeText(text);
     setCopiedCaption(true);
     if (timerRef.current) window.clearTimeout(timerRef.current);
@@ -569,7 +568,7 @@ export default function ShareCard({ tool, nameLine, resultText }: Props) {
                 : "border border-[#c0e8e0] bg-white text-[#007a70]"
             }`}
           >
-            {selectedStyle === style ? "\u25CF " : "\u25CB "}
+            {selectedStyle === style ? "● " : "○ "}
             {STYLE_LABELS[style]}
           </button>
         ))}
@@ -587,7 +586,7 @@ export default function ShareCard({ tool, nameLine, resultText }: Props) {
       </div>
 
       {error ? (
-        <div className="rvm-error-box rounded-xl p-3 text-sm font-semibold">\u26A0\uFE0F {error}</div>
+        <div className="rvm-error-box rounded-xl p-3 text-sm font-semibold">⚠️ {error}</div>
       ) : null}
 
       {/* Action buttons */}
@@ -607,21 +606,21 @@ export default function ShareCard({ tool, nameLine, resultText }: Props) {
             onClick={onDownloadPng}
             className="rvm-primary-button rounded-xl px-4 py-3 text-sm font-semibold text-white"
           >
-            \u2B07 Download Again
+            ⬇ Download Again
           </button>
           <button
             type="button"
             onClick={handleInstagramShare}
             className="rounded-xl bg-[#0085b8] px-4 py-3 text-sm font-semibold text-white"
           >
-            \uD83D\uDCF1 Share to Instagram
+            📱 Share to Instagram
           </button>
           <button
             type="button"
             onClick={handleWhatsAppShare}
             className="rounded-xl bg-[#0bbf8f] px-4 py-3 text-sm font-semibold text-white"
           >
-            \uD83D\uDCAC WhatsApp
+            💬 WhatsApp
           </button>
         </div>
       )}
@@ -641,7 +640,7 @@ export default function ShareCard({ tool, nameLine, resultText }: Props) {
       {/* Caption section */}
       {downloaded ? (
         <div className="rounded-2xl border border-[#d0eee8] bg-white p-3">
-          <p className="mb-2 text-sm font-bold text-[#0a3030]">\uD83D\uDCCB Instagram Caption — tap to copy</p>
+          <p className="mb-2 text-sm font-bold text-[#0a3030]">📋 Instagram Caption — tap to copy</p>
           <div className="rounded-xl bg-[#f0fafa] p-3 text-sm text-[#0a3030]">
             {isCaptionLoading ? "Generating caption..." : caption || "Caption will appear here."}
           </div>
@@ -651,14 +650,14 @@ export default function ShareCard({ tool, nameLine, resultText }: Props) {
               onClick={copyCaption}
               className="rounded-xl border border-[#c0e8e0] bg-[#e8faf6] px-3 py-2 text-sm font-semibold text-[#007a70]"
             >
-              {copiedCaption ? "Copied \u2705" : "Copy Caption"}
+              {copiedCaption ? "Copied ✅" : "Copy Caption"}
             </button>
             <button
               type="button"
               onClick={copyLink}
               className="rounded-xl border border-[#c0e8e0] bg-white px-3 py-2 text-sm font-semibold text-[#007a70]"
             >
-              {copiedLink ? "Copied \u2705" : "Copy Link"}
+              {copiedLink ? "Copied ✅" : "Copy Link"}
             </button>
           </div>
         </div>
