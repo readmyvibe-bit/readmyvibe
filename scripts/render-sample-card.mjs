@@ -36,7 +36,7 @@ const svg = `
   </text>
 
   <text x="110" y="930" fill="#ffffff" opacity="0.95" font-size="36" font-family="Arial, sans-serif" font-weight="700">
-    www.readmyvibe.in · Only Rs 1
+    www.readmyvibe.in · Only Rs 3
   </text>
 </svg>
 `;

@@ -19,7 +19,7 @@ export default function Home() {
       </div>
 
       <footer className="fixed inset-x-0 bottom-0 border-t border-pink-100 bg-white/95 px-4 py-3 text-center text-sm font-semibold text-pink-700 backdrop-blur">
-        Rs 1-5 per reading - UPI accepted - No account needed
+        Rs 3-5 per reading - UPI accepted - No account needed
         <LegalLinks />
       </footer>
     </main>

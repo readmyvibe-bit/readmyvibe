@@ -4,7 +4,7 @@ export const TOOL_CONFIG: Record<ToolId, ToolConfig> = {
   "profile-personality": {
     id: "profile-personality",
     name: "What Your Profile Says About You",
-    price: 200,
+    price: 300,
     emoji: "😮",
     tagline: "Discover what your Instagram reveals about your personality",
     description: "Turn your profile vibe into a warm personality reading you can share.",
@@ -51,7 +51,7 @@ export const TOOL_CONFIG: Record<ToolId, ToolConfig> = {
   "profile-impression": {
     id: "profile-impression",
     name: "What Strangers Think of Your Profile",
-    price: 200,
+    price: 300,
     emoji: "🕵️",
     tagline: "Honest first impression analysis of your Instagram",
     description: "Learn how your profile feels in first 3 seconds and how to upgrade it.",
@@ -70,7 +70,7 @@ export const TOOL_CONFIG: Record<ToolId, ToolConfig> = {
   "decode-message": {
     id: "decode-message",
     name: "Decode Your Crush's Message",
-    price: 300,
+    price: 500,
     emoji: "💬",
     tagline: "Find out what they really meant and what to reply",
     description: "Decode mixed signals with calm, kind insight and a confident reply.",
@@ -97,7 +97,7 @@ export const TOOL_CONFIG: Record<ToolId, ToolConfig> = {
   "friendship-roast": {
     id: "friendship-roast",
     name: "Your Friendship Roast",
-    price: 100,
+    price: 300,
     emoji: "😂",
     tagline: "Savage but loving roast to share with your bestie",
     description: "A playful roast that feels hilariously true but always affectionate.",
@@ -122,7 +122,7 @@ export const TOOL_CONFIG: Record<ToolId, ToolConfig> = {
   "instagram-type": {
     id: "instagram-type",
     name: "What Kind of Instagram Person Are You?",
-    price: 200,
+    price: 300,
     emoji: "🧬",
     tagline: "Find your Instagram personality type",
     description: "Answer 5 quick questions and discover your Instagram archetype.",
