@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import LegalLinks from "@/components/LegalLinks";
-import PayButton from "@/components/PayButton";
 import ResultCard from "@/components/ResultCard";
 import ShareCard from "@/components/ShareCard";
 import { getSessionId, resetSessionId } from "@/lib/session";
@@ -13,38 +12,59 @@ type Props = { tool: ToolConfig };
 
 export default function ToolPageClient({ tool }: Props) {
   const [values, setValues] = useState<Record<string, string>>({});
-  const [loading, setLoading] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [isPaying, setIsPaying] = useState(false);
+  const [generationId, setGenerationId] = useState("");
   const [freePreview, setFreePreview] = useState("");
-  const [fullResult, setFullResult] = useState<string | null>(null);
-  const [unlocked, setUnlocked] = useState(false);
+  const [fullResult, setFullResult] = useState("");
+  const [isPaid, setIsPaid] = useState(false);
   const [sessionId, setSessionId] = useState("");
+  const [unlockChecked, setUnlockChecked] = useState(false);
+
+  const loadRazorpayScript = () =>
+    new Promise<boolean>((resolve) => {
+      if (document.getElementById("razorpay-sdk")) return resolve(true);
+      const script = document.createElement("script");
+      script.id = "razorpay-sdk";
+      script.src = "https://checkout.razorpay.com/v1/checkout.js";
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
 
   useEffect(() => {
     let mounted = true;
     const setupSession = async () => {
-      const sid = getSessionId();
+      let sid = getSessionId();
       if (!mounted) return;
       setSessionId(sid);
-      const checkedFlag = localStorage.getItem("readmyvibe_session_checked_v2");
-      if (checkedFlag) return;
       try {
-        const res = await fetch(`/api/unlock?sessionId=${encodeURIComponent(sid)}&validateSessionOnly=1`);
-        const data = await res.json();
-        if (data?.validSession === false) {
-          const next = resetSessionId();
-          if (mounted) setSessionId(next);
+        const unlockRes = await fetch(`/api/unlock?sessionId=${encodeURIComponent(sid)}&toolId=${tool.id}`);
+        const unlockData = await unlockRes.json();
+        if (unlockData?.unlocked) {
+          setIsPaid(true);
+          setFullResult(unlockData.fullResult || "");
+          setGenerationId(unlockData.generationId || "");
+          setUnlockChecked(true);
+          return;
+        }
+
+        const checkedFlag = localStorage.getItem("readmyvibe_session_checked_v3");
+        if (!checkedFlag) {
+          sid = resetSessionId();
+          if (mounted) setSessionId(sid);
+          localStorage.setItem("readmyvibe_session_checked_v3", "1");
         }
       } catch {
         // keep existing session if validation endpoint fails
-      } finally {
-        localStorage.setItem("readmyvibe_session_checked_v2", "1");
       }
+      if (mounted) setUnlockChecked(true);
     };
     void setupSession();
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [tool.id]);
 
   const generate = async (e: FormEvent) => {
     e.preventDefault();
@@ -52,7 +72,7 @@ export default function ToolPageClient({ tool }: Props) {
       alert("Unable to start session. Please refresh and try again.");
       return;
     }
-    setLoading(true);
+    setIsGenerating(true);
     try {
       const res = await fetch("/api/generate", {
         method: "POST",
@@ -67,31 +87,87 @@ export default function ToolPageClient({ tool }: Props) {
       if (!res.ok) throw new Error(data.error || "Failed to generate");
 
       setFreePreview(data.freePreview);
-      setFullResult(data.fullResult);
-      setUnlocked(data.unlocked);
+      setGenerationId(data.generationId || "");
+      setFullResult("");
+      setIsPaid(false);
     } catch (error) {
       console.error(error);
       const message = error instanceof Error ? error.message : "Something went wrong, try again ✨";
       alert(message);
     } finally {
-      setLoading(false);
+      setIsGenerating(false);
     }
   };
 
-  const refreshUnlockedResult = async () => {
-    const res = await fetch("/api/generate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ toolId: tool.id, inputs: values, sessionId }),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || "Failed to refresh result");
-    setFreePreview(data.freePreview);
-    setFullResult(data.fullResult);
-    setUnlocked(true);
+  const handlePayment = async () => {
+    if (!sessionId || !generationId) {
+      alert("Please generate your reading first.");
+      return;
+    }
+    try {
+      setIsPaying(true);
+      const scriptLoaded = await loadRazorpayScript();
+      if (!scriptLoaded) throw new Error("Unable to load payment gateway");
+
+      const orderRes = await fetch("/api/payment/create-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ toolId: tool.id, sessionId, generationId }),
+      });
+      const orderData = await orderRes.json();
+      if (!orderRes.ok) throw new Error(orderData.error || "Payment init failed");
+
+      const options = {
+        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+        amount: orderData.amount,
+        currency: "INR",
+        name: "ReadMyVibe",
+        description: tool.name,
+        order_id: orderData.orderId,
+        theme: { color: "#00a890" },
+        handler: async (response: Record<string, string>) => {
+          const verifyRes = await fetch("/api/payment/verify", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              ...response,
+              sessionId,
+              toolId: tool.id,
+              generationId,
+            }),
+          });
+          const verifyData = await verifyRes.json();
+          if (!verifyRes.ok) throw new Error(verifyData.error || "Payment verification failed");
+          setFullResult(verifyData.fullResult || "");
+          setIsPaid(true);
+        },
+      };
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const rzp = new (window as any).Razorpay(options);
+      rzp.open();
+    } catch (error) {
+      console.error(error);
+      const message = error instanceof Error ? error.message : "Payment failed, please try again.";
+      alert(message);
+    } finally {
+      setIsPaying(false);
+    }
   };
 
-  const shareNameLine = (values.your_name || values.name || tool.name).trim();
+  const shareNameLine = (() => {
+    if (tool.id === "friendship-roast") {
+      const one = values.your_name?.trim() || "";
+      const two = values.friend_name?.trim() || "";
+      return [one, two].filter(Boolean).join(" & ") || "Friendship Duo";
+    }
+    if (tool.id === "crush-compatibility") {
+      const one = values.your_name?.trim() || "";
+      const two = values.crush_name?.trim() || "";
+      return [one, two].filter(Boolean).join(" & ") || "Compatibility Pair";
+    }
+    return (values.your_name || values.name || tool.name).trim();
+  })();
   const shareKeyLine = (fullResult || freePreview || "Your reading is ready to share.").split("\n").filter(Boolean)[0];
 
   return (
@@ -162,23 +238,27 @@ export default function ToolPageClient({ tool }: Props) {
           ))}
           <button
             type="submit"
-            disabled={loading}
+            disabled={isGenerating}
             className="rvm-primary-button w-full rounded-xl px-4 py-3 text-base font-semibold disabled:opacity-50"
           >
-            {loading ? "Reading your vibe..." : "Generate My Reading ✨"}
+            {isGenerating ? "Reading your vibe..." : "Generate My Reading ✨"}
           </button>
         </form>
 
-        {freePreview ? (
+        {unlockChecked && (freePreview || fullResult) ? (
           <div className="space-y-3">
-            <ResultCard freePreview={freePreview} fullResult={fullResult} unlocked={unlocked} />
-            {unlocked ? (
-              <p className="rvm-payment-badge rounded-xl px-3 py-2 text-center text-sm font-semibold">
-                This tool is already unlocked on this device.
-              </p>
+            <ResultCard freePreview={freePreview} fullResult={fullResult || null} unlocked={isPaid} />
+            {!isPaid ? (
+              <button
+                type="button"
+                onClick={handlePayment}
+                disabled={isPaying || !generationId}
+                className="rvm-primary-button w-full rounded-xl px-4 py-3 text-base font-semibold disabled:opacity-50"
+              >
+                {isPaying ? "Opening payment..." : `Unlock Full Reading - Rs ${tool.price / 100}`}
+              </button>
             ) : null}
-            {!unlocked ? <PayButton tool={tool} sessionId={sessionId} onPaid={refreshUnlockedResult} /> : null}
-            {unlocked && fullResult ? (
+            {isPaid && fullResult ? (
               <ShareCard tool={tool} nameLine={shareNameLine} resultText={fullResult || shareKeyLine} />
             ) : null}
             <Link

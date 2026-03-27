@@ -36,7 +36,5 @@ export type GenerateRequest = {
 
 export type GenerateResponse = {
   freePreview: string;
-  fullResult: string | null;
-  generationId: string | null;
-  unlocked: boolean;
+  generationId: string;
 };

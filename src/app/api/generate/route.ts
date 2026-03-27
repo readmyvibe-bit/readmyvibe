@@ -41,26 +41,6 @@ IMPORTANT: Your previous draft was incomplete. Regenerate the answer from scratc
   return secondPass;
 }
 
-async function hasValidUnlock(sessionId: string, toolId: ToolId): Promise<boolean> {
-  if (!supabaseAdmin) return false;
-  const { data: unlock } = await supabaseAdmin
-    .from("unlocks")
-    .select("payment_id")
-    .eq("session_id", sessionId)
-    .eq("tool_id", toolId)
-    .maybeSingle();
-
-  if (!unlock?.payment_id) return false;
-
-  const { data: payment } = await supabaseAdmin
-    .from("payments")
-    .select("status")
-    .eq("id", unlock.payment_id)
-    .maybeSingle();
-
-  return payment?.status === "success";
-}
-
 export async function POST(req: NextRequest) {
   try {
     if (!supabaseAdmin) {
@@ -84,8 +64,6 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const unlocked = await hasValidUnlock(sessionId, toolId);
-
     const prompt = fillPrompt(PROMPTS[toolId], inputs);
     console.log("[generate] prompt sent:", prompt);
     const fullResult = await generateCompleteReading(toolId, prompt);
@@ -97,16 +75,15 @@ export async function POST(req: NextRequest) {
       .insert({
         session_id: sessionId,
         tool_id: toolId,
-        is_paid: unlocked,
+        full_result: fullResult,
+        is_paid: false,
       })
       .select("id")
       .single();
 
     return NextResponse.json({
       freePreview,
-      fullResult: unlocked ? fullResult : null,
-      generationId: generation?.id ?? null,
-      unlocked,
+      generationId: generation?.id,
     });
   } catch (error) {
     console.error(error);

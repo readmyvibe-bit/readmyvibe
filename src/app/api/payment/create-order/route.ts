@@ -10,9 +10,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Supabase is not configured" }, { status: 500 });
     }
 
-    const { toolId, sessionId } = (await req.json()) as { toolId: ToolId; sessionId: string };
+    const { toolId, sessionId, generationId } = (await req.json()) as {
+      toolId: ToolId;
+      sessionId: string;
+      generationId: string;
+    };
     const tool = TOOL_CONFIG[toolId];
-    if (!tool || !sessionId) {
+    if (!tool || !sessionId || !generationId) {
       return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
     }
 
@@ -26,6 +30,7 @@ export async function POST(req: NextRequest) {
     await supabaseAdmin.from("payments").insert({
       session_id: sessionId,
       tool_id: toolId,
+      generation_id: generationId,
       razorpay_order_id: order.id,
       amount: order.amount,
       status: "pending",
