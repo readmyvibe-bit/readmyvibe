@@ -2,15 +2,15 @@ import Link from "next/link";
 
 export default function TermsAndConditionsPage() {
   return (
-    <main className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50 px-4 py-6">
-      <div className="mx-auto max-w-md rounded-2xl bg-white p-5 ring-1 ring-pink-100">
-        <Link href="/" className="text-sm font-semibold text-pink-600">
+    <main className="min-h-screen px-4 py-6">
+      <div className="rvm-card mx-auto max-w-md rounded-2xl p-5">
+        <Link href="/" className="text-sm font-semibold text-[#007a70]">
           ← Back to Home
         </Link>
-        <h1 className="mt-3 text-2xl font-bold text-gray-900">Terms and Conditions</h1>
-        <p className="mt-1 text-sm text-gray-500">Last updated: March 2026</p>
+        <h1 className="mt-3 text-2xl font-bold text-[#0a3030]">Terms and Conditions</h1>
+        <p className="mt-1 text-sm text-[#6aabab]">Last updated: March 2026</p>
 
-        <div className="mt-4 space-y-3 text-sm leading-relaxed text-gray-700">
+        <div className="mt-4 space-y-3 text-sm leading-relaxed text-[#0a3030]">
           <p>
             By using ReadMyVibe, you agree to these terms. ReadMyVibe provides AI-generated entertainment readings and
             insights intended for fun and personal use.

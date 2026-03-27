@@ -51,7 +51,7 @@ export default function PayButton({ tool, sessionId, onPaid }: Props) {
         name: "ReadMyVibe",
         description: tool.name,
         order_id: orderData.orderId,
-        theme: { color: "#ec4899" },
+        theme: { color: "#00a890" },
         handler: async (response: Record<string, string>) => {
           const verifyRes = await fetch("/api/payment/verify", {
             method: "POST",
@@ -85,7 +85,7 @@ export default function PayButton({ tool, sessionId, onPaid }: Props) {
       type="button"
       onClick={startPayment}
       disabled={loading}
-      className="w-full rounded-xl bg-gradient-to-r from-pink-500 to-purple-500 px-4 py-3 text-base font-semibold text-white disabled:opacity-50"
+      className="rvm-primary-button w-full rounded-xl px-4 py-3 text-base font-semibold disabled:opacity-50"
     >
       {loading ? "Opening payment..." : `Unlock Full Reading - Rs ${tool.price / 100} only`}
     </button>

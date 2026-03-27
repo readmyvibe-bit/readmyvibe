@@ -1,7 +1,69 @@
 @import "tailwindcss";
 
+:root {
+  --bg: #f0fafa;
+  --card: #ffffff;
+  --card-border: #d0eee8;
+  --card-shadow: 0 2px 12px rgba(0, 160, 140, 0.06);
+  --card-shadow-hover: 0 6px 20px rgba(0, 160, 140, 0.12);
+  --text: #0a3030;
+  --muted: #5a9090;
+  --label: #6aabab;
+  --brand-a: #00a890;
+  --brand-b: #0090c0;
+  --button-a: #00c8a0;
+  --button-b: #00a8d0;
+  --hero-a: #00a890;
+  --hero-b: #0085b8;
+  --badge-bg: #e8faf6;
+  --badge-text: #007a70;
+  --badge-border: #c0e8e0;
+}
+
 body {
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-plus-jakarta), Arial, Helvetica, sans-serif;
+  color: var(--text);
+  background:
+    radial-gradient(circle at 8% 6%, rgba(0, 200, 180, 0.12), transparent 28%),
+    radial-gradient(circle at 92% 8%, rgba(0, 180, 220, 0.08), transparent 26%),
+    var(--bg);
+}
+
+.rvm-card {
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  box-shadow: var(--card-shadow);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.rvm-card:hover {
+  border-color: #00c0a8;
+  box-shadow: var(--card-shadow-hover);
+  transform: translateY(-2px);
+}
+
+.rvm-primary-button {
+  background: linear-gradient(90deg, var(--button-a), var(--button-b));
+  color: white;
+}
+
+.rvm-payment-badge {
+  background: var(--badge-bg);
+  color: var(--badge-text);
+  border: 1px solid var(--badge-border);
+}
+
+.rvm-brand-gradient {
+  background: linear-gradient(90deg, var(--brand-a), var(--brand-b));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.rvm-hero {
+  background: linear-gradient(135deg, var(--hero-a), var(--hero-b));
+  color: white;
+  box-shadow: 0 8px 32px rgba(0, 168, 144, 0.25);
 }
 
 .locked-content {
@@ -17,6 +79,6 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(168, 85, 247, 0.15);
+  background: rgba(0, 168, 144, 0.12);
   backdrop-filter: blur(2px);
 }

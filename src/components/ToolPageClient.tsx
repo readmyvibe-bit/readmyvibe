@@ -65,37 +65,40 @@ export default function ToolPageClient({ tool }: Props) {
     setUnlocked(true);
   };
 
+  const shareNameLine = (values.your_name || values.name || tool.name).trim();
+  const shareKeyLine = (fullResult || freePreview || "Your reading is ready to share.").split("\n").filter(Boolean)[0];
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50 px-4 py-5">
+    <div className="min-h-screen px-4 py-5">
       <div className="mx-auto max-w-md space-y-4">
-        <Link href="/" className="inline-block text-base font-semibold text-pink-600">
+        <Link href="/" className="inline-block text-base font-semibold text-[#007a70]">
           ← Back
         </Link>
-        <header>
-          <h1 className="text-2xl font-bold text-gray-900">
+        <header className="rvm-card rounded-2xl p-4">
+          <h1 className="text-2xl font-bold text-[#0a3030]">
             {tool.emoji} {tool.name}
           </h1>
-          <p className="mt-1 text-base text-gray-600">{tool.description}</p>
+          <p className="mt-1 text-base text-[#5a9090]">{tool.description}</p>
         </header>
 
-        <form onSubmit={generate} className="space-y-3 rounded-2xl bg-white p-4 ring-1 ring-pink-100">
+        <form onSubmit={generate} className="rvm-card space-y-3 rounded-2xl p-4">
           {tool.fields.map((field) => (
             <label key={field.id} className="block">
-              <span className="mb-1 block text-base font-semibold text-gray-800">{field.label}</span>
+              <span className="mb-1 block text-base font-semibold text-[#6aabab]">{field.label}</span>
               {field.type === "textarea" ? (
                 <textarea
                   required={field.required}
                   value={values[field.id] || ""}
                   onChange={(e) => setValues((s) => ({ ...s, [field.id]: e.target.value }))}
                   rows={4}
-                  className="w-full rounded-xl border border-pink-200 px-3 py-2 text-base outline-none focus:border-pink-400"
+                  className="w-full rounded-xl border border-[#c0e8e0] px-3 py-2 text-base text-[#0a3030] outline-none focus:border-[#00c0a8]"
                 />
               ) : field.type === "select" ? (
                 <select
                   required={field.required}
                   value={values[field.id] || ""}
                   onChange={(e) => setValues((s) => ({ ...s, [field.id]: e.target.value }))}
-                  className="w-full rounded-xl border border-pink-200 px-3 py-2 text-base outline-none focus:border-pink-400"
+                  className="w-full rounded-xl border border-[#c0e8e0] px-3 py-2 text-base text-[#0a3030] outline-none focus:border-[#00c0a8]"
                 >
                   <option value="">Select...</option>
                   {field.options?.map((o) => (
@@ -107,7 +110,7 @@ export default function ToolPageClient({ tool }: Props) {
               ) : field.type === "radio" ? (
                 <div className="grid grid-cols-1 gap-2">
                   {field.options?.map((option) => (
-                    <label key={option} className="flex items-center gap-2 rounded-xl border border-pink-200 p-2">
+                    <label key={option} className="flex items-center gap-2 rounded-xl border border-[#c0e8e0] p-2">
                       <input
                         type="radio"
                         name={field.id}
@@ -115,7 +118,7 @@ export default function ToolPageClient({ tool }: Props) {
                         checked={(values[field.id] || "") === option}
                         onChange={(e) => setValues((s) => ({ ...s, [field.id]: e.target.value }))}
                       />
-                      <span className="text-base text-gray-700">{option}</span>
+                      <span className="text-base text-[#0a3030]">{option}</span>
                     </label>
                   ))}
                 </div>
@@ -126,7 +129,7 @@ export default function ToolPageClient({ tool }: Props) {
                   value={values[field.id] || ""}
                   onChange={(e) => setValues((s) => ({ ...s, [field.id]: e.target.value }))}
                   placeholder={field.placeholder}
-                  className="w-full rounded-xl border border-pink-200 px-3 py-2 text-base outline-none focus:border-pink-400"
+                  className="w-full rounded-xl border border-[#c0e8e0] px-3 py-2 text-base text-[#0a3030] outline-none focus:border-[#00c0a8]"
                 />
               )}
             </label>
@@ -134,7 +137,7 @@ export default function ToolPageClient({ tool }: Props) {
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-xl bg-gradient-to-r from-pink-500 to-purple-500 px-4 py-3 text-base font-semibold text-white disabled:opacity-50"
+            className="rvm-primary-button w-full rounded-xl px-4 py-3 text-base font-semibold disabled:opacity-50"
           >
             {loading ? "Reading your vibe..." : "Generate My Reading ✨"}
           </button>
@@ -143,13 +146,18 @@ export default function ToolPageClient({ tool }: Props) {
         {freePreview ? (
           <div className="space-y-3">
             <ResultCard freePreview={freePreview} fullResult={fullResult} unlocked={unlocked} />
+            {unlocked ? (
+              <p className="rvm-payment-badge rounded-xl px-3 py-2 text-center text-sm font-semibold">
+                This tool is already unlocked on this device.
+              </p>
+            ) : null}
             {!unlocked ? <PayButton tool={tool} sessionId={sessionId} onPaid={refreshUnlockedResult} /> : null}
             {unlocked && fullResult ? (
-              <ShareCard tool={tool} nameLine={(values.name || values.your_name || "").trim()} keyLine={freePreview.split("\n")[0]} />
+              <ShareCard tool={tool} nameLine={shareNameLine} keyLine={shareKeyLine} />
             ) : null}
             <Link
               href="/"
-              className="block w-full rounded-xl bg-gray-900 px-4 py-3 text-center text-base font-semibold text-white"
+              className="rvm-primary-button block w-full rounded-xl px-4 py-3 text-center text-base font-semibold"
             >
               Try Another Tool
             </Link>
