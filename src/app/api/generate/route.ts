@@ -52,6 +52,28 @@ export async function POST(req: NextRequest) {
     const toolId = body.toolId as ToolId;
     const inputs = body.inputs as Record<string, string>;
     const sessionId = body.sessionId as string;
+    // #region agent log
+    fetch("http://127.0.0.1:7620/ingest/e8d6ca03-4cb5-4c5f-9190-f516be2b233b", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "fadc4c" },
+      body: JSON.stringify({
+        sessionId: "fadc4c",
+        runId: "pre-fix",
+        hypothesisId: "H1",
+        location: "src/app/api/generate/route.ts:51",
+        message: "Generate request received",
+        data: {
+          toolId,
+          hasSessionId: Boolean(sessionId),
+          inputKeys: Object.keys(inputs || {}),
+          emptyInputKeys: Object.entries(inputs || {})
+            .filter(([, v]) => !(v || "").trim())
+            .map(([k]) => k),
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
     console.log("[generate] inputs received:", { toolId, sessionId, inputs });
 
     if (!toolId || !TOOL_CONFIG[toolId] || !sessionId) {
@@ -66,8 +88,47 @@ export async function POST(req: NextRequest) {
     }
 
     const prompt = fillPrompt(PROMPTS[toolId], inputs);
+    // #region agent log
+    fetch("http://127.0.0.1:7620/ingest/e8d6ca03-4cb5-4c5f-9190-f516be2b233b", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "fadc4c" },
+      body: JSON.stringify({
+        sessionId: "fadc4c",
+        runId: "pre-fix",
+        hypothesisId: "H2",
+        location: "src/app/api/generate/route.ts:68",
+        message: "Prompt interpolated",
+        data: {
+          promptLength: prompt.length,
+          includesInputValues: Object.fromEntries(
+            Object.entries(inputs || {}).map(([k, v]) => [k, (v || "").trim() ? prompt.includes((v || "").trim()) : true]),
+          ),
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
     console.log("[generate] prompt sent:", prompt);
     const fullResult = await generateCompleteReading(toolId, prompt);
+    // #region agent log
+    fetch("http://127.0.0.1:7620/ingest/e8d6ca03-4cb5-4c5f-9190-f516be2b233b", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "fadc4c" },
+      body: JSON.stringify({
+        sessionId: "fadc4c",
+        runId: "pre-fix",
+        hypothesisId: "H3",
+        location: "src/app/api/generate/route.ts:70",
+        message: "Gemini response received",
+        data: {
+          responseLength: fullResult.length,
+          sectionCount: (fullResult.match(/(?:^|\\n)\\s*\\d+\\./g) || []).length,
+          first180: fullResult.slice(0, 180),
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
     console.log("[generate] raw gemini response:", fullResult);
     const freePreview = getFreePreview(fullResult);
     const generationId = crypto.randomUUID();
@@ -88,6 +149,21 @@ export async function POST(req: NextRequest) {
       generationId,
     });
   } catch (error) {
+    // #region agent log
+    fetch("http://127.0.0.1:7620/ingest/e8d6ca03-4cb5-4c5f-9190-f516be2b233b", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "fadc4c" },
+      body: JSON.stringify({
+        sessionId: "fadc4c",
+        runId: "pre-fix",
+        hypothesisId: "H4",
+        location: "src/app/api/generate/route.ts:catch",
+        message: "Generate route error",
+        data: { errorMessage: error instanceof Error ? error.message : String(error) },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
     console.error(error);
     const message = mapSchemaError(error);
     return NextResponse.json({ error: message }, { status: 500 });

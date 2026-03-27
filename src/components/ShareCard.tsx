@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import html2canvas from "html2canvas";
 import Image from "next/image";
 import { ToolConfig } from "@/types";
 
@@ -19,13 +18,33 @@ const STYLE_LABELS: Record<CardStyle, string> = {
 };
 
 function extractBestQuote(text: string) {
-  const clean = text.replace(/\*\*/g, "").replace(/\s+/g, " ").trim();
-  const sentenceCandidates = clean
-    .split(/(?<=[.!?])\s+/)
-    .map((s) => s.trim())
-    .filter((s) => s.length > 24 && !/^\d+\./.test(s));
-  const selected = sentenceCandidates[0] || clean || "Find your vibe.";
-  return selected.length > 120 ? `${selected.slice(0, 120)}...` : selected;
+  const clean = text
+    .replace(/\*\*/g, "")
+    .replace(/##/g, "")
+    .replace(/\n\n/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  const sentences = clean.split(/[.!?]+/).map((s) => s.trim()).filter((s) => s.length > 20);
+  const candidates = sentences.slice(2);
+  const funnyKeywords = [
+    "never",
+    "always",
+    "only",
+    "literally",
+    "somehow",
+    "zero",
+    "single",
+    "every time",
+    "refuses",
+    "absolutely",
+    "officially",
+  ];
+  const best =
+    candidates.find((s) => funnyKeywords.some((k) => s.toLowerCase().includes(k))) ||
+    candidates[0] ||
+    sentences[0] ||
+    "Find your vibe";
+  return best.length > 100 ? `${best.slice(0, 100)}...` : best;
 }
 
 function toolTypeLabel(toolName: string) {
@@ -112,38 +131,114 @@ export default function ShareCard({ tool, nameLine, resultText }: Props) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [imageUrl, setImageUrl] = useState("");
   const [downloaded, setDownloaded] = useState(false);
-  const captureRef = useRef<HTMLDivElement>(null);
+  const [caption, setCaption] = useState("");
+  const [isCaptionLoading, setIsCaptionLoading] = useState(false);
+  const [copiedCaption, setCopiedCaption] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
+  const timerRef = useRef<number | null>(null);
 
   const quote = useMemo(() => extractBestQuote(resultText), [resultText]);
   const nameText = useMemo(() => (nameLine || "Your Vibe").trim(), [nameLine]);
   const typeLabel = useMemo(() => toolTypeLabel(tool.name), [tool.name]);
 
-  const buildShareLink = () =>
-    `https://wa.me/?text=${encodeURIComponent("Check my ReadMyVibe result https://www.readmyvibe.in")}`;
+  const buildShareLink = (text: string) =>
+    `https://wa.me/?text=${encodeURIComponent(`${text}\nhttps://www.readmyvibe.in`)}`;
+
+  const generateCaption = async (quoteText: string) => {
+    try {
+      setIsCaptionLoading(true);
+      const res = await fetch("/api/generate-caption", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fullResult: resultText, quote: quoteText, toolName: tool.name }),
+      });
+      const data = await res.json();
+      if (res.ok && data.caption) {
+        setCaption(data.caption);
+      } else {
+        setCaption(
+          `POV: AI just decoded my vibe and it is painfully accurate 😭😂\n\n"${quoteText}"\n\nTry yours at readmyvibe.in 👆\n#ReadMyVibe #VibeCheck #InstagramIndia #AIReading #ForYou`,
+        );
+      }
+    } catch {
+      setCaption(
+        `POV: AI just decoded my vibe and it is painfully accurate 😭😂\n\n"${quoteText}"\n\nTry yours at readmyvibe.in 👆\n#ReadMyVibe #VibeCheck #InstagramIndia #AIReading #ForYou`,
+      );
+    } finally {
+      setIsCaptionLoading(false);
+    }
+  };
 
   const onDownloadPng = async () => {
-    if (!captureRef.current) return;
     try {
       setIsGenerating(true);
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      const canvas = await html2canvas(captureRef.current, {
-        useCORS: true,
-        allowTaint: true,
-        scale: 2,
-        backgroundColor: null,
+      const res = await fetch("/api/generate-card", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          style: selectedStyle,
+          emoji: tool.emoji,
+          nameText,
+          typeLabel,
+          quote,
+        }),
       });
-      const dataUrl = canvas.toDataURL("image/png");
+      if (!res.ok) throw new Error("Card generation failed");
+      const blob = await res.blob();
+      const dataUrl = URL.createObjectURL(blob);
       setImageUrl(dataUrl);
       const anchor = document.createElement("a");
       anchor.href = dataUrl;
       anchor.download = `readmyvibe-${tool.id}-${selectedStyle}.png`;
       anchor.click();
       setDownloaded(true);
+      await generateCaption(quote);
     } catch (error) {
       console.error(error);
       alert("Unable to generate card right now. Please try again.");
     } finally {
       setIsGenerating(false);
+    }
+  };
+
+  const copyCaption = async () => {
+    const text = caption || `Try yours at readmyvibe.in 👆`;
+    await navigator.clipboard.writeText(text);
+    setCopiedCaption(true);
+    if (timerRef.current) window.clearTimeout(timerRef.current);
+    timerRef.current = window.setTimeout(() => setCopiedCaption(false), 2000);
+  };
+
+  const copyLink = async () => {
+    await navigator.clipboard.writeText("https://www.readmyvibe.in");
+    setCopiedLink(true);
+    if (timerRef.current) window.clearTimeout(timerRef.current);
+    timerRef.current = window.setTimeout(() => setCopiedLink(false), 2000);
+  };
+
+  const handleInstagramShare = async () => {
+    if (!imageUrl) return;
+    try {
+      const response = await fetch(imageUrl);
+      const blob = await response.blob();
+      const file = new File([blob], "readmyvibe.png", { type: "image/png" });
+      if (navigator.share && navigator.canShare?.({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: "ReadMyVibe",
+          text: caption || "Try yours at readmyvibe.in 👆",
+        });
+      } else {
+        await navigator.clipboard.writeText(caption || "Try yours at readmyvibe.in 👆");
+        const anchor = document.createElement("a");
+        anchor.href = imageUrl;
+        anchor.download = `readmyvibe-${tool.id}-${selectedStyle}.png`;
+        anchor.click();
+        alert("Caption copied! Image downloaded. Open Instagram and paste caption.");
+      }
+    } catch (error) {
+      console.error(error);
+      alert("Instagram sharing failed. Try Download PNG and upload manually.");
     }
   };
 
@@ -169,20 +264,6 @@ export default function ShareCard({ tool, nameLine, resultText }: Props) {
         ))}
       </div>
 
-      <div ref={captureRef} className="fixed -left-[9999px] top-0 w-[1080px]">
-        <div className="w-[1080px]">
-          <CardPreview
-            style={selectedStyle}
-            selected={false}
-            onSelect={() => undefined}
-            emoji={tool.emoji}
-            nameText={nameText}
-            typeLabel={typeLabel}
-            quote={quote}
-          />
-        </div>
-      </div>
-
       <button
         type="button"
         onClick={onDownloadPng}
@@ -193,14 +274,17 @@ export default function ShareCard({ tool, nameLine, resultText }: Props) {
       </button>
 
       {downloaded ? (
-        <a
-          href={buildShareLink()}
-          target="_blank"
-          rel="noreferrer"
-          className="block w-full rounded-xl bg-[#0bbf8f] px-4 py-3 text-center text-base font-semibold text-white"
-        >
-          Share to WhatsApp
-        </a>
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+          <button type="button" onClick={onDownloadPng} className="rvm-primary-button rounded-xl px-4 py-3 text-sm font-semibold text-white">
+            ⬇ Download PNG
+          </button>
+          <button type="button" onClick={handleInstagramShare} className="rounded-xl bg-[#0085b8] px-4 py-3 text-sm font-semibold text-white">
+            📱 Share to Instagram
+          </button>
+          <a href={buildShareLink(caption || quote)} target="_blank" rel="noreferrer" className="rounded-xl bg-[#0bbf8f] px-4 py-3 text-center text-sm font-semibold text-white">
+            💬 WhatsApp
+          </a>
+        </div>
       ) : null}
 
       {imageUrl ? (
@@ -213,6 +297,23 @@ export default function ShareCard({ tool, nameLine, resultText }: Props) {
             unoptimized
             className="h-auto w-full rounded-2xl"
           />
+        </div>
+      ) : null}
+
+      {downloaded ? (
+        <div className="rounded-2xl border border-[#d0eee8] bg-white p-3">
+          <p className="mb-2 text-sm font-bold text-[#0a3030]">📋 Instagram Caption — tap to copy</p>
+          <div className="rounded-xl bg-[#f0fafa] p-3 text-sm text-[#0a3030]">
+            {isCaptionLoading ? "Generating caption..." : caption || "Caption will appear here."}
+          </div>
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            <button type="button" onClick={copyCaption} className="rounded-xl border border-[#c0e8e0] bg-[#e8faf6] px-3 py-2 text-sm font-semibold text-[#007a70]">
+              {copiedCaption ? "Copied ✅" : "Copy Caption"}
+            </button>
+            <button type="button" onClick={copyLink} className="rounded-xl border border-[#c0e8e0] bg-white px-3 py-2 text-sm font-semibold text-[#007a70]">
+              {copiedLink ? "Copied ✅" : "Copy Link"}
+            </button>
+          </div>
         </div>
       ) : null}
     </section>

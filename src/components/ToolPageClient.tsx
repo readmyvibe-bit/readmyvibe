@@ -9,6 +9,13 @@ import { getSessionId, resetSessionId } from "@/lib/session";
 import { ToolConfig } from "@/types";
 
 type Props = { tool: ToolConfig };
+const LOADING_STEPS = [
+  "✨ Payment received! Generating your reading...",
+  "🔮 AI is reading the vibes...",
+  "😂 Crafting your personalised roast...",
+  "🎨 Almost ready...",
+  "💫 Putting the final touches...",
+];
 
 export default function ToolPageClient({ tool }: Props) {
   const [values, setValues] = useState<Record<string, string>>({});
@@ -20,6 +27,9 @@ export default function ToolPageClient({ tool }: Props) {
   const [isPaid, setIsPaid] = useState(false);
   const [sessionId, setSessionId] = useState("");
   const [unlockChecked, setUnlockChecked] = useState(false);
+  const [postPaymentLoading, setPostPaymentLoading] = useState(false);
+  const [loadingStepIndex, setLoadingStepIndex] = useState(0);
+  const [loadingProgress, setLoadingProgress] = useState(0);
 
   const loadRazorpayScript = () =>
     new Promise<boolean>((resolve) => {
@@ -66,6 +76,23 @@ export default function ToolPageClient({ tool }: Props) {
     };
   }, [tool.id]);
 
+  useEffect(() => {
+    if (!postPaymentLoading || fullResult) return;
+    const started = Date.now();
+    const stepTimer = window.setInterval(() => {
+      setLoadingStepIndex((idx) => (idx + 1) % LOADING_STEPS.length);
+    }, 2000);
+    const progressTimer = window.setInterval(() => {
+      const elapsed = Date.now() - started;
+      const pct = Math.min(95, Math.floor((elapsed / 10000) * 95));
+      setLoadingProgress(pct);
+    }, 200);
+    return () => {
+      window.clearInterval(stepTimer);
+      window.clearInterval(progressTimer);
+    };
+  }, [postPaymentLoading, fullResult]);
+
   const generate = async (e: FormEvent) => {
     e.preventDefault();
     if (!sessionId) {
@@ -74,6 +101,25 @@ export default function ToolPageClient({ tool }: Props) {
     }
     setIsGenerating(true);
     try {
+      // #region agent log
+      fetch("http://127.0.0.1:7620/ingest/e8d6ca03-4cb5-4c5f-9190-f516be2b233b", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "fadc4c" },
+        body: JSON.stringify({
+          sessionId: "fadc4c",
+          runId: "pre-fix",
+          hypothesisId: "H5",
+          location: "src/components/ToolPageClient.tsx:generate-start",
+          message: "Frontend generate triggered",
+          data: {
+            toolId: tool.id,
+            hasSessionId: Boolean(sessionId),
+            inputKeys: Object.keys(values),
+          },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -84,6 +130,26 @@ export default function ToolPageClient({ tool }: Props) {
         }),
       });
       const data = await res.json();
+      // #region agent log
+      fetch("http://127.0.0.1:7620/ingest/e8d6ca03-4cb5-4c5f-9190-f516be2b233b", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "fadc4c" },
+        body: JSON.stringify({
+          sessionId: "fadc4c",
+          runId: "pre-fix",
+          hypothesisId: "H5",
+          location: "src/components/ToolPageClient.tsx:generate-response",
+          message: "Frontend generate response",
+          data: {
+            ok: res.ok,
+            hasFreePreview: Boolean(data?.freePreview),
+            hasGenerationId: Boolean(data?.generationId),
+            hasFullResult: Boolean(data?.fullResult),
+          },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
       if (!res.ok) throw new Error(data.error || "Failed to generate");
 
       setFreePreview(data.freePreview);
@@ -126,20 +192,32 @@ export default function ToolPageClient({ tool }: Props) {
         order_id: orderData.orderId,
         theme: { color: "#00a890" },
         handler: async (response: Record<string, string>) => {
-          const verifyRes = await fetch("/api/payment/verify", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              ...response,
-              sessionId,
-              toolId: tool.id,
-              generationId,
-            }),
-          });
-          const verifyData = await verifyRes.json();
-          if (!verifyRes.ok) throw new Error(verifyData.error || "Payment verification failed");
-          setFullResult(verifyData.fullResult || "");
-          setIsPaid(true);
+          try {
+            setPostPaymentLoading(true);
+            setLoadingStepIndex(0);
+            setLoadingProgress(0);
+            const verifyRes = await fetch("/api/payment/verify", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                ...response,
+                sessionId,
+                toolId: tool.id,
+                generationId,
+              }),
+            });
+            const verifyData = await verifyRes.json();
+            if (!verifyRes.ok) throw new Error(verifyData.error || "Payment verification failed");
+            setFullResult(verifyData.fullResult || "");
+            setIsPaid(true);
+            setLoadingProgress(100);
+          } catch (error) {
+            console.error(error);
+            const message = error instanceof Error ? error.message : "Payment verification failed";
+            alert(message);
+          } finally {
+            setPostPaymentLoading(false);
+          }
         },
       };
 
@@ -279,6 +357,19 @@ export default function ToolPageClient({ tool }: Props) {
           <LegalLinks />
         </div>
       </div>
+
+      {postPaymentLoading && !fullResult ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#f0fafa]/95 backdrop-blur-sm">
+          <div className="rvm-card w-[92%] max-w-sm rounded-2xl p-5 text-center">
+            <div className="rvm-brand-gradient text-2xl font-extrabold">ReadMyVibe</div>
+            <div className="mt-4 h-2 w-full overflow-hidden rounded-full bg-[#e8faf6]">
+              <div className="h-full rounded-full bg-gradient-to-r from-[#00c8a0] to-[#00a8d0]" style={{ width: `${loadingProgress}%` }} />
+            </div>
+            <p className="mt-4 text-base font-semibold text-[#0a3030]">{LOADING_STEPS[loadingStepIndex]}</p>
+            <div className="mt-4 h-20 w-20 animate-pulse rounded-full bg-[#00c8a026]" />
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
