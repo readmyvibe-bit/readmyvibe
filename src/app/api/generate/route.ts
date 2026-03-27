@@ -69,21 +69,22 @@ export async function POST(req: NextRequest) {
     const fullResult = await generateCompleteReading(toolId, prompt);
     console.log("[generate] raw gemini response:", fullResult);
     const freePreview = getFreePreview(fullResult);
+    const generationId = crypto.randomUUID();
 
-    const { data: generation } = await supabaseAdmin
+    await supabaseAdmin
       .from("generations")
       .insert({
+        id: generationId,
         session_id: sessionId,
         tool_id: toolId,
         full_result: fullResult,
         is_paid: false,
       })
-      .select("id")
-      .single();
+      .throwOnError();
 
     return NextResponse.json({
       freePreview,
-      generationId: generation?.id,
+      generationId,
     });
   } catch (error) {
     console.error(error);

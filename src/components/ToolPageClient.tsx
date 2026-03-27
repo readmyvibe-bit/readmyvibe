@@ -249,14 +249,19 @@ export default function ToolPageClient({ tool }: Props) {
           <div className="space-y-3">
             <ResultCard freePreview={freePreview} fullResult={fullResult || null} unlocked={isPaid} />
             {!isPaid ? (
-              <button
-                type="button"
-                onClick={handlePayment}
-                disabled={isPaying || !generationId}
-                className="rvm-primary-button w-full rounded-xl px-4 py-3 text-base font-semibold disabled:opacity-50"
-              >
-                {isPaying ? "Opening payment..." : `Unlock Full Reading - Rs ${tool.price / 100}`}
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={handlePayment}
+                  disabled={isPaying}
+                  className="rvm-primary-button w-full rounded-xl px-4 py-3 text-base font-semibold disabled:opacity-50"
+                >
+                  {isPaying ? "Opening payment..." : `Unlock Full Reading - Rs ${tool.price / 100}`}
+                </button>
+                {!generationId ? (
+                  <p className="text-center text-xs text-[#6aabab]">Tap Generate once, then unlock.</p>
+                ) : null}
+              </>
             ) : null}
             {isPaid && fullResult ? (
               <ShareCard tool={tool} nameLine={shareNameLine} resultText={fullResult || shareKeyLine} />
