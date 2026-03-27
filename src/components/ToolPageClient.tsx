@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { FormEvent, useMemo, useState } from "react";
+import LegalLinks from "@/components/LegalLinks";
 import PayButton from "@/components/PayButton";
 import ResultCard from "@/components/ResultCard";
 import ShareCard from "@/components/ShareCard";
@@ -154,6 +155,10 @@ export default function ToolPageClient({ tool }: Props) {
             </Link>
           </div>
         ) : null}
+
+        <div className="pb-6 text-center">
+          <LegalLinks />
+        </div>
       </div>
     </div>
   );

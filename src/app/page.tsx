@@ -1,4 +1,5 @@
 import ToolCard from "@/components/ToolCard";
+import LegalLinks from "@/components/LegalLinks";
 import { TOOLS } from "@/lib/config";
 
 export default function Home() {
@@ -19,6 +20,7 @@ export default function Home() {
 
       <footer className="fixed inset-x-0 bottom-0 border-t border-pink-100 bg-white/95 px-4 py-3 text-center text-sm font-semibold text-pink-700 backdrop-blur">
         Rs 1-5 per reading - UPI accepted - No account needed
+        <LegalLinks />
       </footer>
     </main>
   );
