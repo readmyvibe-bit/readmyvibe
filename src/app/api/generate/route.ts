@@ -3,6 +3,7 @@ import { generateReading } from "@/lib/gemini";
 import { TOOL_CONFIG } from "@/lib/config";
 import { fillPrompt, PROMPTS } from "@/lib/prompts";
 import { supabaseAdmin } from "@/lib/supabase";
+import { mapSchemaError } from "@/lib/dbSchemaMessage";
 import { ToolId } from "@/types";
 
 const REQUIRED_SECTION_COUNT: Record<ToolId, number> = {
@@ -88,7 +89,7 @@ export async function POST(req: NextRequest) {
     });
   } catch (error) {
     console.error(error);
-    const message = error instanceof Error ? error.message : "Something went wrong, try again ✨";
+    const message = mapSchemaError(error);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

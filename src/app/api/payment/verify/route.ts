@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifySignature } from "@/lib/razorpay";
 import { supabaseAdmin } from "@/lib/supabase";
+import { mapSchemaError } from "@/lib/dbSchemaMessage";
 import { ToolId } from "@/types";
 
 export async function POST(req: NextRequest) {
@@ -66,6 +67,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, fullResult: generation?.full_result || "" });
   } catch (error) {
     console.error(error);
-    return NextResponse.json({ error: "Payment verification failed" }, { status: 500 });
+    return NextResponse.json({ error: mapSchemaError(error) || "Payment verification failed" }, { status: 500 });
   }
 }

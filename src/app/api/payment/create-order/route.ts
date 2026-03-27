@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { TOOL_CONFIG } from "@/lib/config";
 import { getRazorpayClient } from "@/lib/razorpay";
 import { supabaseAdmin } from "@/lib/supabase";
+import { mapSchemaError } from "@/lib/dbSchemaMessage";
 import { ToolId } from "@/types";
 
 export async function POST(req: NextRequest) {
@@ -39,6 +40,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ orderId: order.id, amount: order.amount });
   } catch (error) {
     console.error(error);
-    return NextResponse.json({ error: "Unable to create order" }, { status: 500 });
+    return NextResponse.json({ error: mapSchemaError(error) || "Unable to create order" }, { status: 500 });
   }
 }

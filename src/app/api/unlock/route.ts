@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
+import { mapSchemaError } from "@/lib/dbSchemaMessage";
 
 export async function GET(req: NextRequest) {
+  try {
   if (!supabaseAdmin) {
     return NextResponse.json({ unlocked: false });
   }
@@ -52,4 +54,8 @@ export async function GET(req: NextRequest) {
     generationId,
     fullResult: generation?.full_result || "",
   });
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ unlocked: false, error: mapSchemaError(error) }, { status: 500 });
+  }
 }
