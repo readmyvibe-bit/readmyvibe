@@ -21,6 +21,10 @@ export default function ToolPageClient({ tool }: Props) {
 
   const generate = async (e: FormEvent) => {
     e.preventDefault();
+    if (!sessionId) {
+      alert("Unable to start session. Please refresh and try again.");
+      return;
+    }
     setLoading(true);
     try {
       const res = await fetch("/api/generate", {
@@ -40,7 +44,8 @@ export default function ToolPageClient({ tool }: Props) {
       setUnlocked(data.unlocked);
     } catch (error) {
       console.error(error);
-      alert("Something went wrong, try again ✨");
+      const message = error instanceof Error ? error.message : "Something went wrong, try again ✨";
+      alert(message);
     } finally {
       setLoading(false);
     }

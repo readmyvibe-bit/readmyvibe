@@ -64,6 +64,7 @@ export async function POST(req: NextRequest) {
     });
   } catch (error) {
     console.error(error);
-    return NextResponse.json({ error: "Something went wrong, try again ✨" }, { status: 500 });
+    const message = error instanceof Error ? error.message : "Something went wrong, try again ✨";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

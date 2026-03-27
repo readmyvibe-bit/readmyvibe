@@ -37,11 +37,11 @@ export const TOOL_CONFIG: Record<ToolId, ToolConfig> = {
   },
   "facebook-prediction": {
     id: "facebook-prediction",
-    name: "Your 2025 Prediction",
+    name: "Your 2026 Prediction",
     price: 500,
     emoji: "🔮",
-    tagline: "AI reads your Facebook energy and predicts your year",
-    description: "Mystical, uplifting predictions based on your recent post energy.",
+    tagline: "AI reads your Facebook energy and predicts your 2026",
+    description: "Mystical, uplifting 2026 predictions based on your recent post energy.",
     fields: [
       { id: "name", label: "Your name", type: "text", required: true },
       { id: "posts", label: "Paste 5-10 recent Facebook posts", type: "textarea", required: true },
