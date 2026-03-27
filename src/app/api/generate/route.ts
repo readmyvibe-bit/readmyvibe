@@ -5,11 +5,38 @@ import { fillPrompt, PROMPTS } from "@/lib/prompts";
 import { supabaseAdmin } from "@/lib/supabase";
 import { ToolId } from "@/types";
 
+const REQUIRED_SECTION_COUNT: Record<ToolId, number> = {
+  "profile-personality": 5,
+  "crush-compatibility": 6,
+  "facebook-prediction": 7,
+  "profile-impression": 6,
+  "decode-message": 7,
+  "friendship-roast": 7,
+  "instagram-type": 6,
+};
+
 function getFreePreview(fullResult: string) {
   const secondSection = fullResult.search(/\n\s*2\./);
   if (secondSection > 0) return fullResult.slice(0, secondSection).trim();
   const lines = fullResult.split("\n").filter(Boolean);
   return lines.slice(0, 2).join("\n");
+}
+
+function countNumberedSections(text: string) {
+  const matches = text.match(/(?:^|\n)\s*\d+\./g);
+  return matches ? matches.length : 0;
+}
+
+async function generateCompleteReading(toolId: ToolId, prompt: string): Promise<string> {
+  const required = REQUIRED_SECTION_COUNT[toolId];
+  const firstPass = await generateReading(prompt);
+  if (countNumberedSections(firstPass) >= required) return firstPass;
+
+  const retryPrompt = `${prompt}
+
+IMPORTANT: Your previous draft was incomplete. Regenerate the answer from scratch and include ALL numbered sections from 1 to ${required}, with clear section labels and complete sentences.`;
+  const secondPass = await generateReading(retryPrompt);
+  return secondPass;
 }
 
 export async function POST(req: NextRequest) {
@@ -43,7 +70,7 @@ export async function POST(req: NextRequest) {
     const unlocked = Boolean(unlock);
 
     const prompt = fillPrompt(PROMPTS[toolId], inputs);
-    const fullResult = await generateReading(prompt);
+    const fullResult = await generateCompleteReading(toolId, prompt);
     const freePreview = getFreePreview(fullResult);
 
     const { data: generation } = await supabaseAdmin
