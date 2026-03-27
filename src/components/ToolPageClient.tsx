@@ -153,7 +153,7 @@ export default function ToolPageClient({ tool }: Props) {
             ) : null}
             {!unlocked ? <PayButton tool={tool} sessionId={sessionId} onPaid={refreshUnlockedResult} /> : null}
             {unlocked && fullResult ? (
-              <ShareCard tool={tool} nameLine={shareNameLine} keyLine={shareKeyLine} />
+              <ShareCard tool={tool} nameLine={shareNameLine} resultText={fullResult || shareKeyLine} />
             ) : null}
             <Link
               href="/"

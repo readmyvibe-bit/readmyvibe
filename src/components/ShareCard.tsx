@@ -1,158 +1,138 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
+import html2canvas from "html2canvas";
 import Image from "next/image";
 import { ToolConfig } from "@/types";
 
 type Props = {
   tool: ToolConfig;
   nameLine: string;
-  keyLine: string;
+  resultText: string;
 };
 
-export default function ShareCard({ tool, nameLine, keyLine }: Props) {
-  const [imgUrl, setImgUrl] = useState("");
+type CardStyle = "aurora" | "minimal" | "bold";
+
+function extractBestQuote(text: string) {
+  const clean = text.replace(/\*\*/g, "").replace(/\s+/g, " ").trim();
+  const sentenceCandidates = clean
+    .split(/(?<=[.!?])\s+/)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 24 && !/^\d+\./.test(s));
+  return (sentenceCandidates[0] || clean || "Find your vibe.").slice(0, 180);
+}
+
+function toolTypeLabel(toolName: string) {
+  return toolName.replace("What ", "").replace("Your ", "").slice(0, 38);
+}
+
+function CardPreview({
+  style,
+  selected,
+  onSelect,
+  emoji,
+  nameText,
+  typeLabel,
+  quote,
+}: {
+  style: CardStyle;
+  selected: boolean;
+  onSelect: () => void;
+  emoji: string;
+  nameText: string;
+  typeLabel: string;
+  quote: string;
+}) {
+  const base =
+    "relative aspect-square rounded-[28px] overflow-hidden border transition-all duration-200 cursor-pointer font-[var(--font-plus-jakarta)]";
+
+  if (style === "aurora") {
+    return (
+      <button type="button" onClick={onSelect} className={`${base} ${selected ? "ring-2 ring-[#00a890]" : ""} border-[#0a4c4c] bg-[#0b2f34] p-5 text-left text-white`}>
+        <div className="absolute left-[-20%] top-[-18%] h-56 w-56 rounded-full bg-[#00c8a033] blur-2xl" />
+        <div className="absolute right-[-14%] top-[8%] h-52 w-52 rounded-full bg-[#00a8d044] blur-2xl" />
+        <div className="relative z-10 flex h-full flex-col">
+          <p className="text-xl font-extrabold">ReadMyVibe {emoji}</p>
+          <p className="mt-6 text-4xl font-black leading-tight">{nameText}</p>
+          <p className="mt-2 text-sm font-semibold uppercase tracking-wide text-white/80">{typeLabel}</p>
+          <p className="mt-5 text-lg font-semibold leading-snug text-white/90">&ldquo;{quote}&rdquo;</p>
+          <div className="mt-auto flex items-center justify-between text-sm font-bold text-white/95">
+            <span>readmyvibe.in</span>
+            <span className="rounded-full bg-white/16 px-3 py-1">Find your vibe ✨</span>
+          </div>
+        </div>
+      </button>
+    );
+  }
+
+  if (style === "minimal") {
+    return (
+      <button type="button" onClick={onSelect} className={`${base} ${selected ? "ring-2 ring-[#00a890]" : ""} border-[#d0eee8] bg-white text-left text-[#0a3030]`}>
+        <div className="bg-gradient-to-r from-[#00a890] to-[#0085b8] p-4 text-white">
+          <p className="text-lg font-extrabold">ReadMyVibe {emoji}</p>
+        </div>
+        <div className="flex h-[calc(100%-64px)] flex-col p-5">
+          <p className="text-4xl font-black leading-tight">{nameText}</p>
+          <p className="mt-2 text-sm font-semibold uppercase tracking-wide text-[#6aabab]">{typeLabel}</p>
+          <p className="mt-5 text-lg font-semibold leading-snug text-[#0a3030]">&ldquo;{quote}&rdquo;</p>
+          <div className="mt-auto flex items-center justify-between text-sm font-bold">
+            <span>readmyvibe.in</span>
+            <span className="rounded-full bg-[#e8faf6] px-3 py-1 text-[#007a70]">Find your vibe ✨</span>
+          </div>
+        </div>
+      </button>
+    );
+  }
+
+  return (
+    <button type="button" onClick={onSelect} className={`${base} ${selected ? "ring-2 ring-[#00a890]" : ""} border-[#d0eee8] bg-white pl-[6px] text-left text-[#0a3030]`}>
+      <div className="h-full rounded-r-[22px] bg-white p-5">
+        <div className="absolute left-0 top-0 h-full w-[6px] bg-gradient-to-b from-[#00a890] to-[#00a8d0]" />
+        <p className="text-xl font-extrabold rvm-brand-gradient">ReadMyVibe {emoji}</p>
+        <p className="mt-6 text-4xl font-black leading-tight">{nameText}</p>
+        <p className="mt-2 text-sm font-semibold uppercase tracking-wide text-[#6aabab]">{typeLabel}</p>
+        <p className="mt-5 text-lg font-semibold leading-snug">&ldquo;{quote}&rdquo;</p>
+        <div className="mt-8 flex items-center justify-between text-sm font-bold">
+          <span>readmyvibe.in</span>
+          <span className="rounded-full bg-[#e8faf6] px-3 py-1 text-[#007a70]">Find your vibe ✨</span>
+        </div>
+      </div>
+    </button>
+  );
+}
+
+export default function ShareCard({ tool, nameLine, resultText }: Props) {
+  const [selectedStyle, setSelectedStyle] = useState<CardStyle>("aurora");
   const [isGenerating, setIsGenerating] = useState(false);
+  const [imageUrl, setImageUrl] = useState("");
+  const [downloaded, setDownloaded] = useState(false);
+  const captureRef = useRef<HTMLDivElement>(null);
 
-  const safeName = (nameLine || "You").trim();
-  const teaser = (keyLine || "This reading is so you.").trim().slice(0, 180);
+  const quote = useMemo(() => extractBestQuote(resultText), [resultText]);
+  const nameText = useMemo(() => (nameLine || "Your Vibe").trim(), [nameLine]);
+  const typeLabel = useMemo(() => toolTypeLabel(tool.name), [tool.name]);
 
-  const cardTitle = useMemo(() => {
-    switch (tool.id) {
-      case "friendship-roast":
-        return "Your Friendship Roast";
-      case "decode-message":
-        return "Decode Your Crush's Message";
-      case "facebook-prediction":
-        return "Your 2026 Prediction";
-      case "instagram-type":
-        return "Your Instagram Type";
-      case "crush-compatibility":
-        return "Crush Compatibility";
-      case "profile-impression":
-        return "Profile Impression";
-      default:
-        return "Profile Personality";
-    }
-  }, [tool.id]);
+  const buildShareLink = () =>
+    `https://wa.me/?text=${encodeURIComponent("Check my ReadMyVibe result https://www.readmyvibe.in")}`;
 
-  const wrapText = (
-    ctx: CanvasRenderingContext2D,
-    text: string,
-    x: number,
-    y: number,
-    maxWidth: number,
-    lineHeight: number,
-    maxLines: number,
-  ) => {
-    const words = text.split(" ");
-    let line = "";
-    let linesWritten = 0;
-    for (const word of words) {
-      const testLine = line ? `${line} ${word}` : word;
-      if (ctx.measureText(testLine).width > maxWidth && line) {
-        ctx.fillText(line, x, y + linesWritten * lineHeight);
-        linesWritten += 1;
-        line = word;
-        if (linesWritten >= maxLines - 1) break;
-      } else {
-        line = testLine;
-      }
-    }
-    if (linesWritten < maxLines) {
-      const finalLine = linesWritten >= maxLines - 1 && line.length > 70 ? `${line.slice(0, 67)}...` : line;
-      ctx.fillText(finalLine, x, y + linesWritten * lineHeight);
-    }
-  };
-
-  const drawRoundedRect = (
-    ctx: CanvasRenderingContext2D,
-    x: number,
-    y: number,
-    width: number,
-    height: number,
-    radius: number,
-  ) => {
-    ctx.beginPath();
-    ctx.moveTo(x + radius, y);
-    ctx.lineTo(x + width - radius, y);
-    ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
-    ctx.lineTo(x + width, y + height - radius);
-    ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
-    ctx.lineTo(x + radius, y + height);
-    ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
-    ctx.lineTo(x, y + radius);
-    ctx.quadraticCurveTo(x, y, x + radius, y);
-    ctx.closePath();
-  };
-
-  const generateImage = async () => {
+  const onDownloadPng = async () => {
+    if (!captureRef.current) return;
     try {
       setIsGenerating(true);
-
-      const canvas = document.createElement("canvas");
-      canvas.width = 1080;
-      canvas.height = 1080;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) throw new Error("Canvas unavailable");
-
-      const gradient = ctx.createLinearGradient(0, 0, 1080, 1080);
-      gradient.addColorStop(0, "#00c8a0");
-      gradient.addColorStop(1, "#00a8d0");
-      ctx.fillStyle = gradient;
-      ctx.fillRect(0, 0, 1080, 1080);
-
-      ctx.fillStyle = "rgba(255,255,255,0.14)";
-      ctx.beginPath();
-      ctx.arc(930, 130, 170, 0, Math.PI * 2);
-      ctx.fill();
-
-      ctx.beginPath();
-      ctx.arc(110, 980, 200, 0, Math.PI * 2);
-      ctx.fill();
-
-      ctx.fillStyle = "#ffffff";
-      ctx.font = "800 72px 'Plus Jakarta Sans', Arial, sans-serif";
-      ctx.fillText("ReadMyVibe", 72, 110);
-
-      ctx.fillStyle = "rgba(255,255,255,0.2)";
-      drawRoundedRect(ctx, 810, 62, 190, 86, 43);
-      ctx.fill();
-      ctx.fillStyle = "#ffffff";
-      ctx.font = "700 52px 'Plus Jakarta Sans', Arial, sans-serif";
-      ctx.fillText(tool.emoji, 874, 122);
-
-      ctx.fillStyle = "rgba(255,255,255,0.16)";
-      drawRoundedRect(ctx, 72, 190, 936, 292, 34);
-      ctx.fill();
-
-      ctx.fillStyle = "#ffffff";
-      ctx.font = "800 76px 'Plus Jakarta Sans', Arial, sans-serif";
-      ctx.fillText(safeName.toLowerCase(), 108, 300);
-
-      ctx.font = "800 68px 'Plus Jakarta Sans', Arial, sans-serif";
-      wrapText(ctx, cardTitle, 108, 390, 850, 74, 2);
-
-      ctx.font = "700 44px 'Plus Jakarta Sans', Arial, sans-serif";
-      wrapText(ctx, teaser, 72, 575, 936, 58, 4);
-
-      ctx.fillStyle = "rgba(7, 61, 67, 0.35)";
-      drawRoundedRect(ctx, 72, 900, 936, 112, 28);
-      ctx.fill();
-
-      ctx.fillStyle = "#ffffff";
-      ctx.font = "800 50px 'Plus Jakarta Sans', Arial, sans-serif";
-      ctx.fillText("www.readmyvibe.in", 120, 974);
-
-      ctx.fillStyle = "#ffffff";
-      drawRoundedRect(ctx, 640, 925, 320, 64, 32);
-      ctx.fill();
-      ctx.fillStyle = "#007a70";
-      ctx.font = "900 44px 'Plus Jakarta Sans', Arial, sans-serif";
-      ctx.fillText(`Only Rs ${tool.price / 100}`, 675, 973);
-
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      const canvas = await html2canvas(captureRef.current, {
+        useCORS: true,
+        allowTaint: true,
+        scale: 2,
+        backgroundColor: null,
+      });
       const dataUrl = canvas.toDataURL("image/png");
-      setImgUrl(dataUrl);
+      setImageUrl(dataUrl);
+      const anchor = document.createElement("a");
+      anchor.href = dataUrl;
+      anchor.download = `readmyvibe-${tool.id}-${selectedStyle}.png`;
+      anchor.click();
+      setDownloaded(true);
     } catch (error) {
       console.error(error);
       alert("Unable to generate card right now. Please try again.");
@@ -164,67 +144,82 @@ export default function ShareCard({ tool, nameLine, keyLine }: Props) {
   return (
     <section className="rvm-card space-y-3 rounded-2xl p-4">
       <h3 className="text-base font-bold text-[#0a3030]">Share your reading</h3>
-      <div className="relative aspect-square w-full overflow-hidden rounded-2xl bg-gradient-to-br from-[#00c8a0] to-[#00a8d0] p-6 text-white">
-        <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/20" />
-        <div className="absolute -bottom-8 -left-8 h-36 w-36 rounded-full bg-white/12" />
-        <div className="relative flex h-full flex-col">
-          <div className="flex items-center justify-between">
-            <span className="text-3xl font-black tracking-tight">ReadMyVibe</span>
-            <span className="rounded-full bg-white/20 px-3 py-1 text-2xl">{tool.emoji}</span>
-          </div>
-          <div className="mt-6 rounded-2xl bg-white/16 p-4">
-            <p className="text-5xl font-black leading-tight tracking-tight">{safeName.toLowerCase()}</p>
-            <p className="mt-3 text-4xl font-bold leading-tight">{cardTitle}</p>
-          </div>
-          <p className="mt-5 line-clamp-4 break-words text-[32px] font-semibold leading-snug text-white/95">{teaser}</p>
-          <div className="mt-auto flex items-center justify-between rounded-xl bg-[#073d4359] px-4 py-3">
-            <p className="text-xl font-bold">www.readmyvibe.in</p>
-            <p className="rounded-full bg-white px-4 py-1 text-lg font-black text-[#007a70]">Only Rs {tool.price / 100}</p>
-          </div>
+      <p className="text-sm text-[#5a9090]">Pick a style, then download as PNG.</p>
+
+      <div className="grid grid-cols-1 gap-3">
+        <CardPreview
+          style="aurora"
+          selected={selectedStyle === "aurora"}
+          onSelect={() => setSelectedStyle("aurora")}
+          emoji={tool.emoji}
+          nameText={nameText}
+          typeLabel={typeLabel}
+          quote={quote}
+        />
+        <CardPreview
+          style="minimal"
+          selected={selectedStyle === "minimal"}
+          onSelect={() => setSelectedStyle("minimal")}
+          emoji={tool.emoji}
+          nameText={nameText}
+          typeLabel={typeLabel}
+          quote={quote}
+        />
+        <CardPreview
+          style="bold"
+          selected={selectedStyle === "bold"}
+          onSelect={() => setSelectedStyle("bold")}
+          emoji={tool.emoji}
+          nameText={nameText}
+          typeLabel={typeLabel}
+          quote={quote}
+        />
+      </div>
+
+      <div ref={captureRef} className="fixed -left-[9999px] top-0 w-[1080px]">
+        <div className="w-[1080px]">
+          <CardPreview
+            style={selectedStyle}
+            selected={false}
+            onSelect={() => undefined}
+            emoji={tool.emoji}
+            nameText={nameText}
+            typeLabel={typeLabel}
+            quote={quote}
+          />
         </div>
       </div>
 
       <button
         type="button"
-        onClick={generateImage}
+        onClick={onDownloadPng}
         disabled={isGenerating}
-        className="rvm-primary-button w-full rounded-xl px-4 py-3 text-base font-semibold"
+        className="rvm-primary-button w-full rounded-xl px-4 py-3 text-base font-semibold disabled:opacity-60"
       >
-        {isGenerating ? "Generating..." : "Generate Share Card"}
+        {isGenerating ? "Generating..." : "Download PNG"}
       </button>
 
-      {imgUrl ? (
-        <div className="space-y-2">
+      {downloaded ? (
+        <a
+          href={buildShareLink()}
+          target="_blank"
+          rel="noreferrer"
+          className="block w-full rounded-xl bg-[#0bbf8f] px-4 py-3 text-center text-base font-semibold text-white"
+        >
+          Share to WhatsApp
+        </a>
+      ) : null}
+
+      {imageUrl ? (
+        <div className="rounded-2xl border border-[#d0eee8] bg-white p-2">
           <Image
-            src={imgUrl}
+            src={imageUrl}
             alt="Generated share card"
             width={1080}
             height={1080}
             unoptimized
-            className="h-auto w-full rounded-2xl border border-[#d0eee8]"
+            className="h-auto w-full rounded-2xl"
           />
-          <a
-            href={imgUrl}
-            download={`readmyvibe-${tool.id}.png`}
-            className="rvm-primary-button block w-full rounded-xl px-4 py-3 text-center text-base font-semibold"
-          >
-            Download Image
-          </a>
-          <a
-            href={`https://wa.me/?text=${encodeURIComponent("Check my ReadMyVibe result https://readmyvibe.in")}`}
-            target="_blank"
-            className="block w-full rounded-xl bg-[#0bbf8f] px-4 py-3 text-center text-base font-semibold text-white"
-            rel="noreferrer"
-          >
-            Share to WhatsApp
-          </a>
-          <button
-            type="button"
-            onClick={() => navigator.clipboard.writeText("https://readmyvibe.in")}
-            className="block w-full rounded-xl border border-[#c0e8e0] bg-[#e8faf6] px-4 py-3 text-base font-semibold text-[#007a70]"
-          >
-            Copy link
-          </button>
         </div>
       ) : null}
     </section>
