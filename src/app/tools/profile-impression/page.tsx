@@ -1,3 +1,6 @@
-import { redirect } from "next/navigation";
+import ToolPageClient from "@/components/ToolPageClient";
+import { TOOL_CONFIG } from "@/lib/config";
 
-export default function Page(){ redirect("/tools/profile-impression"); }
+export default function Page() {
+  return <ToolPageClient tool={TOOL_CONFIG["profile-impression"]} />;
+}
