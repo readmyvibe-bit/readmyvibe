@@ -1,6 +1,7 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
+const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.0-flash";
 
 export async function generateReading(prompt: string): Promise<string> {
   if (!process.env.GEMINI_API_KEY) {
@@ -8,7 +9,7 @@ export async function generateReading(prompt: string): Promise<string> {
   }
 
   const model = genAI.getGenerativeModel({
-    model: "gemini-1.5-flash",
+    model: GEMINI_MODEL,
     generationConfig: {
       temperature: 0.9,
       maxOutputTokens: 1024,
