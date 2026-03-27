@@ -77,6 +77,12 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Clean Instagram URLs to just @username before sending to AI
+    if (inputs.username && inputs.username.includes("instagram.com/")) {
+      const match = inputs.username.match(/instagram\.com\/([^/?&#]+)/);
+      if (match?.[1]) inputs.username = "@" + match[1];
+    }
+
     const prompt = fillPrompt(PROMPTS[toolId], inputs);
     console.log("[generate] prompt sent:", prompt);
     const fullResult = await generateCompleteReading(toolId, prompt);

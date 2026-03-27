@@ -73,6 +73,16 @@ function toTitleCase(str: string): string {
   return str.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+function extractUsername(input: string): string {
+  const trimmed = input.trim();
+  if (trimmed.includes("instagram.com/")) {
+    const match = trimmed.match(/instagram\.com\/([^/?&#]+)/);
+    if (match?.[1]) return "@" + match[1];
+  }
+  if (trimmed.startsWith("@")) return trimmed.split(/\s/)[0];
+  return "@" + trimmed.replace(/[^a-zA-Z0-9._]/g, "");
+}
+
 export default function ToolPageClient({ tool }: Props) {
   const [values, setValues] = useState<Record<string, string>>({});
   const [isGenerating, setIsGenerating] = useState(false);
@@ -290,7 +300,7 @@ export default function ToolPageClient({ tool }: Props) {
       return "Your Instagram Type";
     }
     if ((tool.id === "profile-personality" || tool.id === "profile-impression") && values.username) {
-      return values.username.trim();
+      return extractUsername(values.username);
     }
     return (values.your_name || values.name || "Your Vibe").trim();
   })();

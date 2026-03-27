@@ -33,27 +33,43 @@ function extractBestQuote(text: string): string {
   const clean = text
     .replace(/\*\*/g, "")
     .replace(/##/g, "")
-    .replace(/\n\n/g, " ")
+    .replace(/\n+/g, " ")
     .replace(/\s+/g, " ")
     .trim();
-  const sentences = (clean.match(/[^.!?]*[.!?]+/g) || [])
+
+  const sentences = clean
+    .split(/(?<=[.!?])\s+/)
     .map((s) => s.trim())
-    .filter((s) => s.length > 20);
-  const candidates = sentences.slice(2);
-  const funnyKeywords = [
-    "never", "always", "only", "literally", "somehow", "zero",
-    "single", "every time", "refuses", "absolutely", "officially", "secretly",
+    .filter((s) => s.length > 30)
+    .filter((s) => !s.includes("http"))
+    .filter((s) => !s.includes("unlock"))
+    .filter((s) => !s.includes("readmyvibe"))
+    .filter((s) => !s.endsWith("\u2013"))
+    .filter((s) => !s.endsWith("-"))
+    .filter((s) => !s.endsWith(","));
+
+  const skipFirst = sentences.slice(2);
+
+  const priority = [
+    "superpower", "magic", "effortlessly", "radiates",
+    "inspires", "craft", "power", "soul", "vibrant",
+    "stunning", "never", "always", "literally", "somehow",
+    "secretly", "refuses", "every time",
   ];
-  const best =
-    candidates.find((s) => funnyKeywords.some((k) => s.toLowerCase().includes(k))) ||
-    candidates[0] ||
-    sentences[0] ||
-    "Find your vibe";
-  if (best.length <= 90) return best;
-  const sub = best.slice(0, 90);
-  const lastEnd = Math.max(sub.lastIndexOf("."), sub.lastIndexOf("!"), sub.lastIndexOf("?"));
-  if (lastEnd > 20) return best.slice(0, lastEnd + 1);
-  return best.slice(0, 87) + "...";
+
+  // Prefer exclamation sentences first
+  const exclamation = skipFirst.find((s) => s.includes("!") && s.length <= 100);
+  if (exclamation) return exclamation;
+
+  // Then find keyword matches under 100 chars
+  const keyword = skipFirst.find(
+    (s) => priority.some((k) => s.toLowerCase().includes(k)) && s.length <= 100,
+  );
+  if (keyword) return keyword;
+
+  // Fallback to first complete sentence under 100 chars
+  const fallback = skipFirst.find((s) => s.length <= 100);
+  return fallback || sentences[0] || "Find your vibe";
 }
 
 /* ─── Canvas drawing ─── */
