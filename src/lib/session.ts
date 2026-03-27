@@ -15,3 +15,11 @@ export function getSessionId(): string {
   }
   return sessionId;
 }
+
+export function resetSessionId(): string {
+  const canUseRandomUuid =
+    typeof globalThis.crypto !== "undefined" && typeof globalThis.crypto.randomUUID === "function";
+  const nextId = canUseRandomUuid ? globalThis.crypto.randomUUID() : fallbackSessionId();
+  localStorage.setItem("readmyvibe_session", nextId);
+  return nextId;
+}

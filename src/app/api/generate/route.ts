@@ -16,10 +16,12 @@ const REQUIRED_SECTION_COUNT: Record<ToolId, number> = {
 };
 
 function getFreePreview(fullResult: string) {
-  const secondSection = fullResult.search(/\n\s*2\./);
-  if (secondSection > 0) return fullResult.slice(0, secondSection).trim();
-  const lines = fullResult.split("\n").filter(Boolean);
-  return lines.slice(0, 2).join("\n");
+  const firstParagraph = fullResult.split(/\n\s*\n/)[0]?.trim() || fullResult.trim();
+  const sentenceParts = firstParagraph
+    .split(/(?<=[.!?])\s+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return sentenceParts.slice(0, 2).join(" ").trim();
 }
 
 function countNumberedSections(text: string) {
@@ -39,6 +41,26 @@ IMPORTANT: Your previous draft was incomplete. Regenerate the answer from scratc
   return secondPass;
 }
 
+async function hasValidUnlock(sessionId: string, toolId: ToolId): Promise<boolean> {
+  if (!supabaseAdmin) return false;
+  const { data: unlock } = await supabaseAdmin
+    .from("unlocks")
+    .select("payment_id")
+    .eq("session_id", sessionId)
+    .eq("tool_id", toolId)
+    .maybeSingle();
+
+  if (!unlock?.payment_id) return false;
+
+  const { data: payment } = await supabaseAdmin
+    .from("payments")
+    .select("status")
+    .eq("id", unlock.payment_id)
+    .maybeSingle();
+
+  return payment?.status === "success";
+}
+
 export async function POST(req: NextRequest) {
   try {
     if (!supabaseAdmin) {
@@ -49,6 +71,7 @@ export async function POST(req: NextRequest) {
     const toolId = body.toolId as ToolId;
     const inputs = body.inputs as Record<string, string>;
     const sessionId = body.sessionId as string;
+    console.log("[generate] inputs received:", { toolId, sessionId, inputs });
 
     if (!toolId || !TOOL_CONFIG[toolId] || !sessionId) {
       return NextResponse.json({ error: "Invalid request" }, { status: 400 });
@@ -61,16 +84,12 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const { data: unlock } = await supabaseAdmin
-      .from("unlocks")
-      .select("id")
-      .eq("session_id", sessionId)
-      .eq("tool_id", toolId)
-      .maybeSingle();
-    const unlocked = Boolean(unlock);
+    const unlocked = await hasValidUnlock(sessionId, toolId);
 
     const prompt = fillPrompt(PROMPTS[toolId], inputs);
+    console.log("[generate] prompt sent:", prompt);
     const fullResult = await generateCompleteReading(toolId, prompt);
+    console.log("[generate] raw gemini response:", fullResult);
     const freePreview = getFreePreview(fullResult);
 
     const { data: generation } = await supabaseAdmin

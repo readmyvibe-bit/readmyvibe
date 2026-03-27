@@ -12,6 +12,11 @@ type Props = {
 };
 
 type CardStyle = "aurora" | "minimal" | "bold";
+const STYLE_LABELS: Record<CardStyle, string> = {
+  aurora: "Aurora",
+  minimal: "Minimal White",
+  bold: "Bold Type",
+};
 
 function extractBestQuote(text: string) {
   const clean = text.replace(/\*\*/g, "").replace(/\s+/g, " ").trim();
@@ -19,7 +24,8 @@ function extractBestQuote(text: string) {
     .split(/(?<=[.!?])\s+/)
     .map((s) => s.trim())
     .filter((s) => s.length > 24 && !/^\d+\./.test(s));
-  return (sentenceCandidates[0] || clean || "Find your vibe.").slice(0, 180);
+  const selected = sentenceCandidates[0] || clean || "Find your vibe.";
+  return selected.length > 120 ? `${selected.slice(0, 120)}...` : selected;
 }
 
 function toolTypeLabel(toolName: string) {
@@ -55,7 +61,7 @@ function CardPreview({
           <p className="text-xl font-extrabold">ReadMyVibe {emoji}</p>
           <p className="mt-6 text-4xl font-black leading-tight">{nameText}</p>
           <p className="mt-2 text-sm font-semibold uppercase tracking-wide text-white/80">{typeLabel}</p>
-          <p className="mt-5 text-lg font-semibold leading-snug text-white/90">&ldquo;{quote}&rdquo;</p>
+          <p className="mt-5 overflow-hidden text-ellipsis text-lg font-semibold leading-snug text-white/90">&ldquo;{quote}&rdquo;</p>
           <div className="mt-auto flex items-center justify-between text-sm font-bold text-white/95">
             <span>readmyvibe.in</span>
             <span className="rounded-full bg-white/16 px-3 py-1">Find your vibe ✨</span>
@@ -74,7 +80,7 @@ function CardPreview({
         <div className="flex h-[calc(100%-64px)] flex-col p-5">
           <p className="text-4xl font-black leading-tight">{nameText}</p>
           <p className="mt-2 text-sm font-semibold uppercase tracking-wide text-[#6aabab]">{typeLabel}</p>
-          <p className="mt-5 text-lg font-semibold leading-snug text-[#0a3030]">&ldquo;{quote}&rdquo;</p>
+          <p className="mt-5 overflow-hidden text-ellipsis text-lg font-semibold leading-snug text-[#0a3030]">&ldquo;{quote}&rdquo;</p>
           <div className="mt-auto flex items-center justify-between text-sm font-bold">
             <span>readmyvibe.in</span>
             <span className="rounded-full bg-[#e8faf6] px-3 py-1 text-[#007a70]">Find your vibe ✨</span>
@@ -91,7 +97,7 @@ function CardPreview({
         <p className="text-xl font-extrabold rvm-brand-gradient">ReadMyVibe {emoji}</p>
         <p className="mt-6 text-4xl font-black leading-tight">{nameText}</p>
         <p className="mt-2 text-sm font-semibold uppercase tracking-wide text-[#6aabab]">{typeLabel}</p>
-        <p className="mt-5 text-lg font-semibold leading-snug">&ldquo;{quote}&rdquo;</p>
+        <p className="mt-5 overflow-hidden text-ellipsis text-lg font-semibold leading-snug">&ldquo;{quote}&rdquo;</p>
         <div className="mt-8 flex items-center justify-between text-sm font-bold">
           <span>readmyvibe.in</span>
           <span className="rounded-full bg-[#e8faf6] px-3 py-1 text-[#007a70]">Find your vibe ✨</span>
@@ -147,33 +153,20 @@ export default function ShareCard({ tool, nameLine, resultText }: Props) {
       <p className="text-sm text-[#5a9090]">Pick a style, then download as PNG.</p>
 
       <div className="grid grid-cols-1 gap-3">
-        <CardPreview
-          style="aurora"
-          selected={selectedStyle === "aurora"}
-          onSelect={() => setSelectedStyle("aurora")}
-          emoji={tool.emoji}
-          nameText={nameText}
-          typeLabel={typeLabel}
-          quote={quote}
-        />
-        <CardPreview
-          style="minimal"
-          selected={selectedStyle === "minimal"}
-          onSelect={() => setSelectedStyle("minimal")}
-          emoji={tool.emoji}
-          nameText={nameText}
-          typeLabel={typeLabel}
-          quote={quote}
-        />
-        <CardPreview
-          style="bold"
-          selected={selectedStyle === "bold"}
-          onSelect={() => setSelectedStyle("bold")}
-          emoji={tool.emoji}
-          nameText={nameText}
-          typeLabel={typeLabel}
-          quote={quote}
-        />
+        {(["aurora", "minimal", "bold"] as CardStyle[]).map((style) => (
+          <div key={style} className="space-y-1">
+            <p className="text-xs font-semibold text-[#6aabab]">{STYLE_LABELS[style]}</p>
+            <CardPreview
+              style={style}
+              selected={selectedStyle === style}
+              onSelect={() => setSelectedStyle(style)}
+              emoji={tool.emoji}
+              nameText={nameText}
+              typeLabel={typeLabel}
+              quote={quote}
+            />
+          </div>
+        ))}
       </div>
 
       <div ref={captureRef} className="fixed -left-[9999px] top-0 w-[1080px]">

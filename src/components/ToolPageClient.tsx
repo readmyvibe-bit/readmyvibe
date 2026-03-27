@@ -1,12 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import LegalLinks from "@/components/LegalLinks";
 import PayButton from "@/components/PayButton";
 import ResultCard from "@/components/ResultCard";
 import ShareCard from "@/components/ShareCard";
-import { getSessionId } from "@/lib/session";
+import { getSessionId, resetSessionId } from "@/lib/session";
 import { ToolConfig } from "@/types";
 
 type Props = { tool: ToolConfig };
@@ -17,8 +17,34 @@ export default function ToolPageClient({ tool }: Props) {
   const [freePreview, setFreePreview] = useState("");
   const [fullResult, setFullResult] = useState<string | null>(null);
   const [unlocked, setUnlocked] = useState(false);
+  const [sessionId, setSessionId] = useState("");
 
-  const sessionId = useMemo(() => getSessionId(), []);
+  useEffect(() => {
+    let mounted = true;
+    const setupSession = async () => {
+      const sid = getSessionId();
+      if (!mounted) return;
+      setSessionId(sid);
+      const checkedFlag = localStorage.getItem("readmyvibe_session_checked_v2");
+      if (checkedFlag) return;
+      try {
+        const res = await fetch(`/api/unlock?sessionId=${encodeURIComponent(sid)}&validateSessionOnly=1`);
+        const data = await res.json();
+        if (data?.validSession === false) {
+          const next = resetSessionId();
+          if (mounted) setSessionId(next);
+        }
+      } catch {
+        // keep existing session if validation endpoint fails
+      } finally {
+        localStorage.setItem("readmyvibe_session_checked_v2", "1");
+      }
+    };
+    void setupSession();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const generate = async (e: FormEvent) => {
     e.preventDefault();
