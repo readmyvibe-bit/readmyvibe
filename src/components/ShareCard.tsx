@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { ToolConfig } from "@/types";
 
@@ -135,9 +135,46 @@ export default function ShareCard({ tool, nameLine, resultText }: Props) {
   const [isCaptionLoading, setIsCaptionLoading] = useState(false);
   const [copiedCaption, setCopiedCaption] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [aiQuote, setAiQuote] = useState<string | null>(null);
+  const [quoteLoading, setQuoteLoading] = useState(false);
   const timerRef = useRef<number | null>(null);
 
-  const quote = useMemo(() => extractBestQuote(resultText), [resultText]);
+  useEffect(() => {
+    if (!resultText?.trim()) return;
+    let cancelled = false;
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), 18000);
+    setAiQuote(null);
+    setQuoteLoading(true);
+    fetch("/api/generate-share-card-quote", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ fullResult: resultText, toolName: tool.name }),
+      signal: controller.signal,
+    })
+      .then(async (res) => {
+        const data = (await res.json()) as { quote?: string };
+        if (!cancelled && res.ok && data.quote?.trim()) {
+          setAiQuote(data.quote.trim());
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        window.clearTimeout(timeoutId);
+        if (!cancelled) setQuoteLoading(false);
+      });
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, [resultText, tool.name]);
+
+  const quote = useMemo(() => {
+    if (aiQuote) return aiQuote;
+    return extractBestQuote(resultText);
+  }, [aiQuote, resultText]);
+
+  const displayQuote = quoteLoading && !aiQuote ? "Creating your personalised line…" : quote;
   const nameText = useMemo(() => (nameLine || "Your Vibe").trim(), [nameLine]);
   const typeLabel = useMemo(() => toolTypeLabel(tool.name), [tool.name]);
 
@@ -180,7 +217,7 @@ export default function ShareCard({ tool, nameLine, resultText }: Props) {
           emoji: tool.emoji,
           nameText,
           typeLabel,
-          quote,
+          quote: aiQuote ?? quote,
         }),
       });
       if (!res.ok) throw new Error("Card generation failed");
@@ -192,7 +229,7 @@ export default function ShareCard({ tool, nameLine, resultText }: Props) {
       anchor.download = `readmyvibe-${tool.id}-${selectedStyle}.png`;
       anchor.click();
       setDownloaded(true);
-      await generateCaption(quote);
+      await generateCaption(aiQuote ?? quote);
     } catch (error) {
       console.error(error);
       alert("Unable to generate card right now. Please try again.");
@@ -216,29 +253,19 @@ export default function ShareCard({ tool, nameLine, resultText }: Props) {
     timerRef.current = window.setTimeout(() => setCopiedLink(false), 2000);
   };
 
+  /** Avoids Web Share / canShare(file) — those prompts often ask for "access other apps" on mobile Chrome. */
   const handleInstagramShare = async () => {
     if (!imageUrl) return;
     try {
-      const response = await fetch(imageUrl);
-      const blob = await response.blob();
-      const file = new File([blob], "readmyvibe.png", { type: "image/png" });
-      if (navigator.share && navigator.canShare?.({ files: [file] })) {
-        await navigator.share({
-          files: [file],
-          title: "ReadMyVibe",
-          text: caption || "Try yours at readmyvibe.in 👆",
-        });
-      } else {
-        await navigator.clipboard.writeText(caption || "Try yours at readmyvibe.in 👆");
-        const anchor = document.createElement("a");
-        anchor.href = imageUrl;
-        anchor.download = `readmyvibe-${tool.id}-${selectedStyle}.png`;
-        anchor.click();
-        alert("Caption copied! Image downloaded. Open Instagram and paste caption.");
-      }
+      await navigator.clipboard.writeText(caption || "Try yours at readmyvibe.in 👆");
+      const anchor = document.createElement("a");
+      anchor.href = imageUrl;
+      anchor.download = `readmyvibe-${tool.id}-${selectedStyle}.png`;
+      anchor.click();
+      alert("Caption copied! Image downloaded. Open Instagram and upload the PNG.");
     } catch (error) {
       console.error(error);
-      alert("Instagram sharing failed. Try Download PNG and upload manually.");
+      alert("Could not copy caption. Try Download PNG and copy the caption manually.");
     }
   };
 
@@ -258,7 +285,7 @@ export default function ShareCard({ tool, nameLine, resultText }: Props) {
               emoji={tool.emoji}
               nameText={nameText}
               typeLabel={typeLabel}
-              quote={quote}
+              quote={displayQuote}
             />
           </div>
         ))}
@@ -267,10 +294,10 @@ export default function ShareCard({ tool, nameLine, resultText }: Props) {
       <button
         type="button"
         onClick={onDownloadPng}
-        disabled={isGenerating}
+        disabled={isGenerating || quoteLoading}
         className="rvm-primary-button w-full rounded-xl px-4 py-3 text-base font-semibold disabled:opacity-60"
       >
-        {isGenerating ? "Generating..." : "Download PNG"}
+        {isGenerating ? "Generating..." : quoteLoading ? "Preparing your card line..." : "Download PNG"}
       </button>
 
       {downloaded ? (

@@ -110,21 +110,22 @@ Years friends: {years}
 That one thing they always do: {signature_thing}
 
 Write a friendship roast with:
-1. THE ROAST OPENING (1 killer funny line that sets the vibe — loving not mean)
-2. {your_name}'S ROLE IN THIS FRIENDSHIP (funny, specific, affectionate)
-3. {friend_name}'S ROLE IN THIS FRIENDSHIP (funny, specific, affectionate)
+1. THE ROAST OPENING (1 killer funny line that sets the vibe — loving not mean; weave in something specific from "that one thing" above)
+2. {your_name}'S ROLE IN THIS FRIENDSHIP (funny, specific, affectionate — reference real details from the inputs)
+3. {friend_name}'S ROLE IN THIS FRIENDSHIP (funny, specific, affectionate — reference real details from the inputs)
 4. THE THING ONLY THEY UNDERSTAND (an inside-joke style observation)
 5. WHO IS REALLY IN CHARGE (funny power dynamics observation)
 6. FRIENDSHIP TYPE: [Give them a fun label like "The Chaotic Duo" or "The Ride or Die Legends"]
-7. 2025 FRIENDSHIP PREDICTION (funny and heartwarming)
+7. 2026 FRIENDSHIP PREDICTION (funny and heartwarming)
 
 Rules:
 - NEVER mean, never personal attacks, never body or appearance jokes.
 - Roast the situation and habits, not the person.
+- You MUST use the exact situation from "That one thing they always do" in multiple sections — not generic filler.
 - The kind of humour that makes you go "omg this is so us."
 - Universally relatable moments everyone has with a best friend.
 - End with something genuinely warm and touching.
-- Maximum 300 words.`,
+- Complete every numbered section in full sentences. Maximum 500 words.`,
   "instagram-type": `You are a fun, self-aware social media personality analyst. Based on someone's Instagram habits, give them their Instagram personality type.
 
 Answers:

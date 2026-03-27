@@ -7,10 +7,19 @@ type Props = {
   unlocked: boolean;
 };
 
+function escapeHtml(s: string) {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
 function cleanMarkdownToHtml(text: string) {
-  return text
-    .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
-    .replace(/\*(.*?)\*/g, "$1")
+  const escaped = escapeHtml(text);
+  return escaped
+    .replace(/\*\*([\s\S]+?)\*\*/g, "<strong>$1</strong>")
+    .replace(/\*([^*\n]+)\*/g, "$1")
     .replace(/##\s/g, "")
     .replace(/^\d+\.\s/gm, "")
     .replace(/\n/g, "<br/>");

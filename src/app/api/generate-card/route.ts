@@ -27,7 +27,8 @@ export async function POST(req: NextRequest) {
     const isDark = safeStyle === "aurora";
     const fg = isDark ? "#ffffff" : "#0a3030";
     const muted = isDark ? "rgba(255,255,255,0.8)" : "#6aabab";
-    const quoteText = (quote || "").trim().slice(0, 80) + ((quote || "").length > 80 ? "..." : "");
+    const rawQuote = (quote || "").trim();
+    const quoteText = rawQuote.slice(0, 200) + (rawQuote.length > 200 ? "…" : "");
 
     const svg = `
 <svg width="1080" height="1080" viewBox="0 0 1080 1080" xmlns="http://www.w3.org/2000/svg">

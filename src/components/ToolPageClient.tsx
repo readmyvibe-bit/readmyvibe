@@ -101,25 +101,6 @@ export default function ToolPageClient({ tool }: Props) {
     }
     setIsGenerating(true);
     try {
-      // #region agent log
-      fetch("http://127.0.0.1:7620/ingest/e8d6ca03-4cb5-4c5f-9190-f516be2b233b", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "fadc4c" },
-        body: JSON.stringify({
-          sessionId: "fadc4c",
-          runId: "pre-fix",
-          hypothesisId: "H5",
-          location: "src/components/ToolPageClient.tsx:generate-start",
-          message: "Frontend generate triggered",
-          data: {
-            toolId: tool.id,
-            hasSessionId: Boolean(sessionId),
-            inputKeys: Object.keys(values),
-          },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
-      // #endregion
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -130,26 +111,6 @@ export default function ToolPageClient({ tool }: Props) {
         }),
       });
       const data = await res.json();
-      // #region agent log
-      fetch("http://127.0.0.1:7620/ingest/e8d6ca03-4cb5-4c5f-9190-f516be2b233b", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "fadc4c" },
-        body: JSON.stringify({
-          sessionId: "fadc4c",
-          runId: "pre-fix",
-          hypothesisId: "H5",
-          location: "src/components/ToolPageClient.tsx:generate-response",
-          message: "Frontend generate response",
-          data: {
-            ok: res.ok,
-            hasFreePreview: Boolean(data?.freePreview),
-            hasGenerationId: Boolean(data?.generationId),
-            hasFullResult: Boolean(data?.fullResult),
-          },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
-      // #endregion
       if (!res.ok) throw new Error(data.error || "Failed to generate");
 
       setFreePreview(data.freePreview);

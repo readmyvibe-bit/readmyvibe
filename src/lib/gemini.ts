@@ -18,10 +18,18 @@ function isModelUnavailableError(error: unknown) {
   );
 }
 
-export async function generateReading(prompt: string): Promise<string> {
+export type GenerateReadingOptions = {
+  maxOutputTokens?: number;
+  temperature?: number;
+};
+
+export async function generateReading(prompt: string, opts?: GenerateReadingOptions): Promise<string> {
   if (!process.env.GEMINI_API_KEY) {
     throw new Error("Missing GEMINI_API_KEY");
   }
+
+  const maxOutputTokens = opts?.maxOutputTokens ?? 4096;
+  const temperature = opts?.temperature ?? 0.9;
 
   let lastError: unknown;
   for (const modelName of DEFAULT_MODELS) {
@@ -29,8 +37,8 @@ export async function generateReading(prompt: string): Promise<string> {
       const model = genAI.getGenerativeModel({
         model: modelName,
         generationConfig: {
-          temperature: 0.9,
-          maxOutputTokens: 1024,
+          temperature,
+          maxOutputTokens,
         },
       });
 
@@ -46,4 +54,30 @@ export async function generateReading(prompt: string): Promise<string> {
 
   const message = lastError instanceof Error ? lastError.message : "Unable to generate reading";
   throw new Error(`All configured Gemini models failed. ${message}`);
+}
+
+/** One punchy line for share graphics — must reflect this reading, not a generic opener. */
+export async function generateShareCardQuote(fullResult: string, toolName: string): Promise<string> {
+  const prompt = `You write short Instagram card text for ReadMyVibe.
+
+Product: ${toolName}
+
+Full reading:
+${fullResult.slice(0, 6000)}
+
+Output EXACTLY one line, max 130 characters, plain text only.
+- Capture the funniest or most specific "mic drop" from THIS reading (habits, dynamics, in-jokes, names if natural).
+- Do NOT use generic host / narrator openers ("Alright everyone", "Settle in", "Ladies and gentlemen", "We're here to celebrate").
+- Prefer a punchline from the middle or later sections over the first sentence.
+- No quotation marks around the line. No label like "Quote:".`;
+
+  const raw = await generateReading(prompt, { maxOutputTokens: 256, temperature: 0.85 });
+  const line =
+    raw
+      .split(/\n/)
+      .map((l) => l.trim())
+      .filter(Boolean)
+      .map((l) => l.replace(/^["'“”]+|["'“”]+$/g, "").trim())
+      .find((l) => l.length > 0) || raw.trim();
+  return line.slice(0, 200);
 }
