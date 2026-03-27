@@ -69,6 +69,10 @@ const TOOL_LOADING_STEPS: Partial<Record<ToolId, string[]>> = {
   ],
 };
 
+function toTitleCase(str: string): string {
+  return str.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 export default function ToolPageClient({ tool }: Props) {
   const [values, setValues] = useState<Record<string, string>>({});
   const [isGenerating, setIsGenerating] = useState(false);
@@ -85,7 +89,9 @@ export default function ToolPageClient({ tool }: Props) {
   const [error, setError] = useState("");
 
   const loadingSteps = TOOL_LOADING_STEPS[tool.id] || DEFAULT_LOADING_STEPS;
-  const clearError = () => { if (error) setError(""); };
+  const clearError = () => {
+    if (error) setError("");
+  };
 
   const loadRazorpayScript = () =>
     new Promise<boolean>((resolve) => {
@@ -107,9 +113,10 @@ export default function ToolPageClient({ tool }: Props) {
       try {
         const unlockRes = await fetch(`/api/unlock?sessionId=${encodeURIComponent(sid)}&toolId=${tool.id}`);
         const unlockData = await unlockRes.json();
-        if (unlockData?.unlocked) {
+        if (unlockRes.ok && unlockData?.unlocked === true && unlockData.fullResult) {
+          console.log("[unlock-check] Restoring paid session, fullResult length:", unlockData.fullResult.length);
           setIsPaid(true);
-          setFullResult(unlockData.fullResult || "");
+          setFullResult(unlockData.fullResult);
           setGenerationId(unlockData.generationId || "");
           setUnlockChecked(true);
           return;
@@ -227,7 +234,11 @@ export default function ToolPageClient({ tool }: Props) {
             });
             const verifyData = await verifyRes.json();
             if (!verifyRes.ok) throw new Error(verifyData.error || "Payment verification failed");
-            setFullResult(verifyData.fullResult || "");
+            if (!verifyData.success || !verifyData.fullResult) {
+              throw new Error("Payment verified but reading not found. Please contact support.");
+            }
+            console.log("[payment-verify] Setting isPaid=true, fullResult length:", verifyData.fullResult.length);
+            setFullResult(verifyData.fullResult);
             setIsPaid(true);
             setLoadingProgress(100);
           } catch (err) {
@@ -268,9 +279,21 @@ export default function ToolPageClient({ tool }: Props) {
       const two = values.crush_name?.trim() || "";
       return [one, two].filter(Boolean).join(" & ") || "Compatibility Pair";
     }
-    return (values.your_name || values.name || tool.name).trim();
+    if (tool.id === "instagram-type" && fullResult) {
+      const match = fullResult.match(/YOUR INSTAGRAM TYPE[:\s]*(.+)/i);
+      if (match?.[1]) {
+        let name = match[1].replace(/\*+/g, "").replace(/\n.*/, "").trim();
+        if (name.length > 30) name = name.slice(0, 30);
+        if (/^[A-Z\s,]+$/.test(name)) name = toTitleCase(name);
+        return name || "Your Instagram Type";
+      }
+      return "Your Instagram Type";
+    }
+    if ((tool.id === "profile-personality" || tool.id === "profile-impression") && values.username) {
+      return values.username.trim();
+    }
+    return (values.your_name || values.name || "Your Vibe").trim();
   })();
-  const shareKeyLine = (fullResult || freePreview || "Your reading is ready to share.").split("\n").filter(Boolean)[0];
 
   return (
     <div className="min-h-screen px-4 py-5">
@@ -340,9 +363,7 @@ export default function ToolPageClient({ tool }: Props) {
           ))}
 
           {error ? (
-            <div className="rvm-error-box rounded-xl p-3 text-sm font-semibold">
-              ⚠️ {error}
-            </div>
+            <div className="rvm-error-box rounded-xl p-3 text-sm font-semibold">⚠️ {error}</div>
           ) : null}
 
           <button
@@ -373,7 +394,7 @@ export default function ToolPageClient({ tool }: Props) {
               </>
             ) : null}
             {isPaid && fullResult ? (
-              <ShareCard tool={tool} nameLine={shareNameLine} resultText={fullResult || shareKeyLine} />
+              <ShareCard tool={tool} nameLine={shareNameLine} resultText={fullResult} />
             ) : null}
             <Link
               href="/"
@@ -394,7 +415,10 @@ export default function ToolPageClient({ tool }: Props) {
           <div className="rvm-card w-[92%] max-w-sm rounded-2xl p-5 text-center">
             <div className="rvm-brand-gradient text-2xl font-extrabold">ReadMyVibe</div>
             <div className="mt-4 h-2 w-full overflow-hidden rounded-full bg-[#e8faf6]">
-              <div className="h-full rounded-full bg-gradient-to-r from-[#00c8a0] to-[#00a8d0]" style={{ width: `${loadingProgress}%` }} />
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-[#00c8a0] to-[#00a8d0]"
+                style={{ width: `${loadingProgress}%` }}
+              />
             </div>
             <p className="mt-4 text-base font-semibold text-[#0a3030]">{loadingSteps[loadingStepIndex]}</p>
             <div className="mt-4 h-20 w-20 animate-pulse rounded-full bg-[#00c8a026]" />

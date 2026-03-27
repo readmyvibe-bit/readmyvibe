@@ -15,13 +15,26 @@ function escapeHtml(s: string) {
     .replace(/"/g, "&quot;");
 }
 
+function toTitleCase(str: string): string {
+  return str.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function isAllCapsHeading(text: string): boolean {
+  const stripped = text.replace(/[^A-Za-z ]/g, "").trim();
+  return stripped.length > 3 && stripped === stripped.toUpperCase();
+}
+
 function formatSectionHeading(line: string) {
-  const escaped = escapeHtml(line);
   // Strip leading number + period (e.g. "1. ")
-  const withoutNumber = escaped.replace(/^\d+\.\s*/, "");
-  // Strip ** markers and render as bold heading
-  const clean = withoutNumber.replace(/\*\*([\s\S]*?)\*\*/g, "$1").replace(/\*/g, "");
-  return `<div class="result-heading">${clean}</div>`;
+  let withoutNumber = line.replace(/^\d+\.\s*/, "");
+  // Strip ** markers
+  withoutNumber = withoutNumber.replace(/\*\*([\s\S]*?)\*\*/g, "$1").replace(/\*/g, "");
+  // Convert ALL CAPS to Title Case
+  if (isAllCapsHeading(withoutNumber)) {
+    withoutNumber = toTitleCase(withoutNumber);
+  }
+  const escaped = escapeHtml(withoutNumber);
+  return `<div class="result-heading">${escaped}</div>`;
 }
 
 function formatBodyLine(line: string) {
@@ -50,13 +63,13 @@ function formatFullResult(text: string) {
   for (const raw of lines) {
     const trimmed = raw.trim();
     if (!trimmed) {
-      // blank line — potential section break
       flushBody();
       continue;
     }
 
-    // Detect section headings: lines starting with "1.", "2." etc. or all-caps labels
-    const isSectionHead = /^\d+\.\s/.test(trimmed);
+    // Detect section headings: lines starting with "1.", "2." etc.
+    // Also detect standalone ALL CAPS labels like "YOUR INSTAGRAM TYPE: ..."
+    const isSectionHead = /^\d+\.\s/.test(trimmed) || (isAllCapsHeading(trimmed.replace(/:.*/,"")) && trimmed.length < 80);
     if (isSectionHead) {
       flushBody();
       sections.push(formatSectionHeading(trimmed));
@@ -72,7 +85,6 @@ function formatFullResult(text: string) {
   while (i < sections.length) {
     if (sections[i].includes("result-heading")) {
       let block = sections[i];
-      // Collect all body divs that follow this heading
       while (i + 1 < sections.length && sections[i + 1].includes("result-body")) {
         i++;
         block += sections[i];
